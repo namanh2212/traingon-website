@@ -1,0 +1,24 @@
+{
+  "name": "traingon-website",
+  "version": "1.0.0",
+  "description": "Adult Gay Video Streaming Website",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "pm2": "pm2 start ecosystem.config.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "multer": "^1.4.5-lts.1",
+    "bcrypt": "^5.1.0",
+    "compression": "^1.7.4",
+    "helmet": "^7.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "author": "Traingon",
+  "license": "ISC"
+}

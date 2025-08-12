@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video - Traingon.top</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <style>
+        .video-page {
+            margin-top: 70px;
+            padding: 2rem 0;
+        }
+        
+        .video-player {
+            width: 100%;
+            margin-bottom: 2rem;
+        }
+        
+        .video-player iframe {
+            width: 100%;
+            height: 60vh;
+            border: none;
+            border-radius: 16px;
+            background: #000;
+        }
+        
+        .server-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .server-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #a7a7b3;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+        
+        .server-btn.active,
+        .server-btn:hover {
+            background: linear-gradient(135deg, #ff6b6b, #ff5252);
+            border-color: #ff6b6b;
+            color: white;
+        }
+        
+        .video-details {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .video-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #eaeaea;
+        }
+        
+        .video-meta {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1rem;
+            color: #a7a7b3;
+            font-size: 0.9rem;
+        }
+        
+        .video-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .video-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+        
+        .tag {
+            background: rgba(255, 107, 107, 0.2);
+            color: #ff6b6b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .video-description {
+            color: #a7a7b3;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+        
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+        }
+        
+        .content-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+        
+        @media (min-width: 1024px) {
+            .content-layout {
+                grid-template-columns: 2fr 1fr;
+            }
+            
+            .chat-box {
+                position: sticky;
+                top: 90px;
+                height: fit-content;
+                max-height: calc(100vh - 120px);
+            }
+        }
+        
+        .chat-box {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .chat-box h3 {
+            background: linear-gradient(90deg, #2b1d5a, #1a1028);
+            padding: 1rem;
+            margin: 0;
+            font-size: 1.1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .related-videos {
+            margin-top: 3rem;
+        }
+        
+        .related-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: #eaeaea;
+        }
+        
+        .related-grid {
+            display: grid;
+            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+        
+        @media (max-width: 768px) {
+            .related-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .video-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .video-title {
+                font-size: 1.2rem;
+            }
+            
+            .chat-accordion {
+                background: rgba(255, 255, 255, 0.1);
+                border: none;
+                color: #eaeaea;
+                padding: 1rem;
+                width: 100%;
+                text-align: left;
+                cursor: pointer;
+                border-radius: 12px;
+                margin-top: 1rem;
+                transition: all 0.2s ease;
+            }
+            
+            .chat-accordion:hover {
+                background: rgba(255, 255, 255, 0.15);
+            }
+            
+            .chat-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+            }
+            
+            .chat-content.active {
+                max-height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header (same as index.html) -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-badge">T</span>
+                    <span class="logo-text">Traingon.top</span>
+                </div>
+                
+                <nav class="nav">
+                    <a href="/" class="nav-link">Video New</a>
+                    <a href="/?category=gaydar" class="nav-link">Gaydar</a>
+                    <a href="/?category=asian" class="nav-link">Asian</a>
+                    <a href="/?category=japan" class="nav-link">Japan</a>
+                    <a href="/magazine" class="nav-link">Magazine</a>
+                </nav>
+                
+                <div class="search-container">
+                    <input type="text" id="searchInput" placeholder="Tìm kiếm video..." class="search-input">
+                    <button id="searchBtn" class="search-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <button class="mobile-search-toggle">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="mobile-search">
+                <input type="text" id="mobileSearchInput" placeholder="Tìm kiếm video..." class="mobile-search-input">
+                <button class="mobile-search-close">✕</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="video-page">
+        <div class="container">
+            <div class="content-layout">
+                <div class="main-content">
+                    <!-- Server Selection -->
+                    <div id="serverButtons" class="server-buttons" style="display: none;"></div>
+                    
+                    <!-- Video Player -->
+                    <div class="video-player">
+                        <div id="videoPlayer">
+                            <div style="display: flex; align-items: center; justify-content: center; height: 60vh; background: rgba(255,255,255,0.1); border-radius: 16px; color: #a7a7b3;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 2rem; margin-bottom: 1rem;">⏳</div>
+                                    <div>Đang tải video...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Video Details -->
+                    <div id="videoDetails" class="video-details" style="display: none;">
+                        <!-- Content will be loaded by JS -->
+                    </div>
+                    
+                    <!-- Related Videos -->
+                    <div class="related-videos">
+                        <h2 class="related-title">Video liên quan</h2>
+                        <div id="relatedGrid" class="related-grid">
+                            <!-- Related videos will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chat Box (Desktop) -->
+                <div class="chat-box desktop-chat">
+                    <h3>💬 Chat Room</h3>
+                    <iframe src="https://www5.cbox.ws/box/?boxid=958047&boxtag=qsep88" width="100%" height="450" allowtransparency="yes" allow="autoplay" frameborder="0" marginheight="0" marginwidth="0" scrolling="auto"></iframe>
+                </div>
+            </div>
+            
+            <!-- Chat Box (Mobile) -->
+            <div class="mobile-chat" style="display: none;">
+                <button class="chat-accordion">💬 Mở Chat Room</button>
+                <div class="chat-content">
+                    <iframe src="https://www5.cbox.ws/box/?boxid=958047&boxtag=qsep88" width="100%" height="400" allowtransparency="yes" allow="autoplay" frameborder="0" marginheight="0" marginwidth="0" scrolling="auto"></iframe>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer (same as index.html) -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <div class="footer-logo">
+                        <span class="logo-badge">T</span>
+                        <span class="logo-text">Traingon.top</span>
+                    </div>
+                    <p>Nền tảng streaming video adult gay hàng đầu</p>
+                </div>
+                <div class="footer-right">
+                    <div class="social-links">
+                        <a href="mailto:namanhjob4@gmail.com" class="social-link">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                            </svg>
+                        </a>
+                        <a href="https://t.me/nguyensinh977" class="social-link">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                            </svg>
+                        </a>
+                        <a href="https://x.com/callmenamanh" class="social-link">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <a href="mailto:namanhjob4@gmail.com?subject=2257%20Compliance">2257 Statement</a>
+                <a href="mailto:namanhjob4@gmail.com?subject=DMCA%20Notice">DMCA</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/video.js"></script>
+</body>
+</html>

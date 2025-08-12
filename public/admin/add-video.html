@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thêm Video - Admin</title>
+    <link rel="stylesheet" href="/css/admin.css">
+    <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="admin-container">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-badge">T</span>
+                    <span class="logo-text">Admin</span>
+                </div>
+                
+                <nav class="breadcrumb">
+                    <a href="/admin/dashboard.html" class="breadcrumb-item">Dashboard</a>
+                    <span class="breadcrumb-separator">/</span>
+                    <span class="breadcrumb-item active">Thêm Video</span>
+                </nav>
+                
+                <div class="header-actions">
+                    <a href="/admin/dashboard.html" class="btn-secondary">Về danh sách</a>
+                    <button id="logoutBtn" class="btn-secondary">Đăng xuất</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+        <div class="admin-container">
+            <div class="form-container">
+                <form id="addVideoForm" class="video-form" enctype="multipart/form-data">
+                    <div class="form-grid">
+                        <!-- Title -->
+                        <div class="form-group full-width">
+                            <label for="title" class="form-label required">Tiêu đề</label>
+                            <input type="text" id="title" name="title" required class="form-input">
+                            <div class="form-error" id="titleError"></div>
+                        </div>
+
+                        <!-- Embed URLs -->
+                        <div class="form-group full-width">
+                            <label class="form-label required">Embed URL</label>
+                            <div class="embed-options">
+                                <label class="radio-label">
+                                    <input type="radio" name="embedCount" value="1" checked>
+                                    <span>1 link</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="embedCount" value="2">
+                                    <span>2 link</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="embedCount" value="3">
+                                    <span>3 link</span>
+                                </label>
+                            </div>
+                            
+                            <div id="embedInputs" class="embed-inputs">
+                                <!-- Will be populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Thumbnail -->
+                        <div class="form-group full-width">
+                            <label class="form-label required">Thumbnail</label>
+                            <div class="thumbnail-options">
+                                <label class="radio-label">
+                                    <input type="radio" name="thumbnailType" value="url" checked>
+                                    <span>Dùng URL</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="thumbnailType" value="upload">
+                                    <span>Tải ảnh</span>
+                                </label>
+                            </div>
+                            
+                            <div id="thumbnailUrl" class="thumbnail-input">
+                                <input type="url" id="thumbnailUrlInput" name="thumbnailUrl" placeholder="https://example.com/image.jpg" class="form-input">
+                                <div class="form-error" id="thumbnailUrlError"></div>
+                                <div id="thumbnailPreview" class="thumbnail-preview"></div>
+                            </div>
+                            
+                            <div id="thumbnailUpload" class="thumbnail-upload" style="display: none;">
+                                <div class="upload-area" id="uploadArea">
+                                    <div class="upload-content">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/>
+                                        </svg>
+                                        <p>Kéo thả ảnh vào đây hoặc click để chọn</p>
+                                        <span class="upload-hint">PNG, JPG, WEBP (tối đa 5MB)</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="thumbnailFile" name="thumbnail" accept="image/*" class="file-input">
+                                <div class="form-error" id="thumbnailFileError"></div>
+                                <div id="thumbnailFilePreview" class="thumbnail-preview"></div>
+                            </div>
+                        </div>
+
+                        <!-- Duration -->
+                        <div class="form-group">
+                            <label for="duration" class="form-label required">Thời lượng</label>
+                            <input type="text" id="duration" name="duration" placeholder="mm:ss hoặc hh:mm:ss" required class="form-input">
+                            <div class="form-hint">Ví dụ: 15:30 hoặc 1:25:30</div>
+                            <div class="form-error" id="durationError"></div>
+                        </div>
+
+                        <!-- Category -->
+                        <div class="form-group">
+                            <label for="category" class="form-label">Danh mục</label>
+                            <select id="category" name="category" class="form-select">
+                                <option value="none">None</option>
+                                <option value="gaydar">Gaydar</option>
+                                <option value="asian">Asian</option>
+                                <option value="japan">Japan</option>
+                            </select>
+                        </div>
+
+                        <!-- Download Link (Japan only) -->
+                        <div id="downloadLinkGroup" class="form-group full-width" style="display: none;">
+                            <label for="downloadLink" class="form-label">Link Download (tùy chọn)</label>
+                            <input type="url" id="downloadLink" name="downloadLink" placeholder="https://..." class="form-input">
+                            <div class="form-hint">Chỉ hiển thị cho danh mục Japan</div>
+                        </div>
+
+                        <!-- Tags -->
+                        <div class="form-group full-width">
+                            <label for="tagsInput" class="form-label">Tags</label>
+                            <div class="tags-container">
+                                <div id="tagsDisplay" class="tags-display"></div>
+                                <input type="text" id="tagsInput" placeholder="Nhập tag và nhấn Enter..." class="tags-input">
+                            </div>
+                            <div class="form-hint">Nhấn Enter hoặc dấu phẩy để thêm tag, Backspace để xóa</div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="form-group full-width">
+                            <label for="notes" class="form-label">Ghi chú (tùy chọn)</label>
+                            <textarea id="notes" name="notes" rows="4" maxlength="300" placeholder="Mô tả ngắn về video..." class="form-textarea"></textarea>
+                            <div class="char-count"><span id="notesCount">0</span>/300</div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="button" id="saveAndNew" class="btn-secondary">Lưu & Thêm mới</button>
+                        <button type="submit" class="btn-primary">Lưu & Về danh sách</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="/js/auth.js"></script>
+    <script src="/js/admin.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('=== ADD VIDEO PAGE LOADED ===');
+            console.log('Current URL:', window.location.href);
+            
+            // CHỈ GỌI initAddVideoForm CHO TRANG ADD VIDEO
+            initAddVideoForm();
+        });
+    </script>
+</body>
+</html>

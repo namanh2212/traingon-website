@@ -211,31 +211,20 @@ async function loadRelatedVideos() {
         }
         
         // Render related videos
-        relatedGrid.innerHTML = relatedVideos.map((video, index) => `
-            <div class="video-card related-video-card" onclick="navigateToVideo('${video.id}')" style="cursor: pointer;">
+        relatedGrid.innerHTML = relatedVideos.map(video => `
+            <div class="video-card related-video-card" onclick="navigateToVideo('${video.id}')">
                 <div class="video-thumbnail">
-                    <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" 
-                         onerror="this.src='/images/placeholder.jpg'"
-                         style="width: 100%; height: 120px; object-fit: cover; border-radius: 12px;">
-                    <div class="video-duration" style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.9); color: white; padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
-                        ${video.duration}
-                    </div>
-                    <div class="play-overlay" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,107,107,0.9); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s ease;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-                            <path d="M8 5v14l11-7z"/>
-                        </svg>
-                    </div>
+                    <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" onerror="this.src='/images/placeholder.jpg'">
+                    <div class="video-duration">${video.duration}</div>
                 </div>
-                <div class="video-info" style="padding: 1rem 0;">
-                    <h3 class="video-title" style="font-size: 0.95rem; line-height: 1.4; margin-bottom: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: #eaeaea; font-weight: 600;">
-                        ${video.title}
-                    </h3>
+                <div class="video-info">
+                    <h3 class="video-title">${video.title}</h3>
                     <div class="video-meta">
-                        <div class="video-views" style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; color: #a7a7b3;">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                        <div class="video-views">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                             </svg>
-                            ${formatViews(video.views || 0)} lượt xem
+                            ${formatViews(video.views || 0)}
                         </div>
                     </div>
                 </div>

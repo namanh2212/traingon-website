@@ -16,13 +16,7 @@
             margin-bottom: 2rem;
         }
         
-        .video-player iframe {
-            width: 100%;
-            height: 60vh;
-            border: none;
-            border-radius: 16px;
-            background: #000;
-        }
+        
         
         .server-buttons {
             display: flex;
@@ -209,7 +203,14 @@
                 max-height: 500px;
             }
         }
-    </style>
+
+/* === Responsive player (no extra black bars on mobile) === */
+.player-shell{ position:relative; width:100%; aspect-ratio:16/9; background:transparent; border-radius:16px; overflow:hidden; }
+.player-shell iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; background:#000; }
+@media (max-width:768px){
+  .player-shell{ aspect-ratio:16/9; }
+}
+</style>
 </head>
 <body>
     <!-- Header (same as index.html) -->
@@ -262,6 +263,7 @@
                     
                     <!-- Video Player -->
                     <div class="video-player">
+                        <div class="player-shell">
                         <div id="videoPlayer">
                             <div style="display: flex; align-items: center; justify-content: center; height: 60vh; background: rgba(255,255,255,0.1); border-radius: 16px; color: #a7a7b3;">
                                 <div style="text-align: center;">
@@ -270,7 +272,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        </div>
                     
                     <!-- Video Details -->
                     <div id="videoDetails" class="video-details" style="display: none;">
@@ -303,16 +305,12 @@
         </div>
     </main>
 
-    <!-- Footer (same as index.html) -->
+    <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
                 <div class="footer-left">
-                    <div class="footer-logo">
-                        <span class="logo-badge">T</span>
-                        <span class="logo-text">Traingon.top</span>
-                    </div>
-                    <p>Nền tảng streaming video adult gay hàng đầu</p>
+                    <p>&copy; 2025 Traingon.top - All rights reserved.</p>
                 </div>
                 <div class="footer-right">
                     <div class="social-links">
@@ -331,12 +329,10 @@
                                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                             </svg>
                         </a>
+                        <a href="mailto:namanhjob4@gmail.com?subject=2257%20Compliance" style="color: #a7a7b3; text-decoration: none; align-content: center;">2257 Statement</a>
+                        <a href="mailto:namanhjob4@gmail.com?subject=DMCA%20Notice" style="color: #a7a7b3; text-decoration: none; align-content: center;" >DMCA</a>
                     </div>
                 </div>
-            </div>
-            <div class="footer-bottom">
-                <a href="mailto:namanhjob4@gmail.com?subject=2257%20Compliance">2257 Statement</a>
-                <a href="mailto:namanhjob4@gmail.com?subject=DMCA%20Notice">DMCA</a>
             </div>
         </div>
     </footer>

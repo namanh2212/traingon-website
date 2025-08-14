@@ -383,6 +383,20 @@ app.get('/api/admin/videos', requireAuth, async (req, res) => {
   }
 });
 
+// Get single video by ID (admin)
+app.get('/api/admin/videos/:id', requireAuth, async (req, res) => {
+  try {
+    const videos = await readVideos();
+    const video = videos.find(v => String(v.id) === String(req.params.id));
+    if (!video) return res.status(404).json({ error: 'Video not found' });
+    res.json(video);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
 // Create video (admin)
 app.post('/api/admin/videos', requireAuth, upload.single('thumbnail'), async (req, res) => {
   try {

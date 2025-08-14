@@ -263,18 +263,18 @@ async function loadVideoForEdit(videoId) {
         if (editForm) editForm.style.display = 'none';
         if (errorState) errorState.style.display = 'none';
         
-        const response = await fetch(`/api/admin/videos`, {
+        const response = await fetch(`/api/admin/videos/${encodeURIComponent(videoId)}`, {
             headers: {
                 'Authorization': `Bearer ${sessionStorage.getItem('adminToken')}`
             }
         });
         
         if (!response.ok) {
-            throw new Error('Failed to load videos');
+            throw new Error('Video not found');
         }
         
-        const data = await response.json();
-        const video = data.videos.find(v => v.id === videoId);
+        
+        const video = await response.json();
         
         if (!video) {
             throw new Error('Video not found');

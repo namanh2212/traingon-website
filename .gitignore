@@ -60,3 +60,4 @@ ecosystem.config.js
 *.backup
 *.bak
 *.tmp
+cloudflared.deb

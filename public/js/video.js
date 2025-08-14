@@ -212,7 +212,7 @@ async function loadRelatedVideos() {
         
         // Render related videos
         relatedGrid.innerHTML = relatedVideos.map(video => `
-            <div class="video-card related-video-card" onclick="navigateToVideo('${video.id}')">
+            <a class="video-card related-video-card" href="/video.html?id=${video.id}">
                 <div class="video-thumbnail">
                     <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" onerror="this.src='/images/placeholder.jpg'">
                     <div class="video-duration">${video.duration}</div>
@@ -228,7 +228,7 @@ async function loadRelatedVideos() {
                         </div>
                     </div>
                 </div>
-            </div>
+            </a>
         `).join('');
         
         console.log('Related videos rendered successfully');

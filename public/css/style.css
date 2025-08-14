@@ -1051,3 +1051,6 @@ body {
   .meta{ font-size:.7rem; gap:.3rem; }
   .meta svg{ width:12px; height:12px; }
 }
+
+.video-card { display:block; text-decoration:none; color:inherit; }
+.video-card:visited { color:inherit; }

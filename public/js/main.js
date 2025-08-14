@@ -150,7 +150,7 @@ function generateSkeleton(count = 20) {
     skeleton.innerHTML = '';
     
     for (let i = 0; i < count; i++) {
-        const skeletonCard = document.createElement('div');
+        const skeletonCard = document.createElement('a');
         skeletonCard.className = 'skeleton-card';
         skeletonCard.innerHTML = `
             <div class="skeleton-thumbnail skeleton"></div>
@@ -222,7 +222,7 @@ async function loadVideos() {
             
             // Show search results info
             if (currentSearch) {
-                const searchInfo = document.createElement('div');
+                const searchInfo = document.createElement('a');
                 searchInfo.className = 'search-info';
                 searchInfo.innerHTML = `
                     <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 1rem;">
@@ -300,8 +300,9 @@ function renderVideos(videos) {
     videoGrid.innerHTML = '';
     
     videos.forEach(video => {
-        const videoCard = document.createElement('div');
+        const videoCard = document.createElement('a');
         videoCard.className = 'video-card';
+    videoCard.href = '/video.html?id=' + video.id;
         videoCard.innerHTML = `
             <div class="video-thumbnail">
                 <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" 
@@ -319,13 +320,7 @@ function renderVideos(videos) {
                     </div>
                 </div>
             </div>
-        `;
-        
-        videoCard.addEventListener('click', () => {
-            window.location.href = `/video.html?id=${video.id}`;
-        });
-        
-        videoGrid.appendChild(videoCard);
+        `;videoGrid.appendChild(videoCard);
     });
 }
 

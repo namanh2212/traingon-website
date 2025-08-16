@@ -934,3 +934,13 @@ body {
         display: block !important;
     }
 }
+
+
+/* Modal sắp xếp video – gọn nhẹ */
+.reorder-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000}
+.reorder-modal .box{width:min(720px,92vw);max-height:80vh;overflow:auto;background:#161629;color:#eaeaea;border-radius:12px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.reorder-modal .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+#reorderList{list-style:decimal;padding-left:1.25rem;margin:0;display:flex;flex-direction:column;gap:.5rem}
+#reorderList li{display:flex;align-items:center;gap:.5rem;background:#1d1d33;padding:.5rem .75rem;border-radius:8px}
+#reorderList .ttl{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#reorderList .act button{margin-left:.25rem}

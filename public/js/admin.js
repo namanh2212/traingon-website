@@ -1212,6 +1212,101 @@ function showConfirmModal(title, message, onConfirm) {
     modal.addEventListener('click', outsideClick);
 }
 
+// ====== SẮP XẾP THỦ CÔNG (↑ ↓ / Đưa lên đầu) ======
+let reorderList = [];
+
+async function openReorderModal() {
+  const token = sessionStorage.getItem('adminToken') || '';
+  if (!token) { alert('Bạn chưa đăng nhập'); return; }
+
+  const res = await fetch('/api/admin/videos?limit=1000', {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+  if (!res.ok) { alert('Không tải được danh sách'); return; }
+
+  const data = await res.json();
+  const arr  = Array.isArray(data?.videos) ? data.videos : (Array.isArray(data) ? data : []);
+  reorderList = arr.map(v => ({ id: String(v.id), title: v.title || ('#' + v.id) }));
+
+  renderReorderList();
+  const modal = document.getElementById('reorderModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function renderReorderList() {
+  const el = document.getElementById('reorderList');
+  if (!el) return;
+  if (!reorderList.length) { el.innerHTML = '<li>Chưa có video nào.</li>'; return; }
+  el.innerHTML = reorderList.map((v, i) => `
+    <li data-id="${v.id}">
+      <span class="idx">${i + 1}.</span>
+      <span class="ttl">${v.title}</span>
+      <span class="act">
+        <button class="up"  data-id="${v.id}" title="Lên">↑</button>
+        <button class="down" data-id="${v.id}" title="Xuống">↓</button>
+        <button class="top" data-id="${v.id}" title="Đầu">Đầu</button>
+      </span>
+    </li>
+  `).join('');
+}
+
+function moveItem(id, delta) {
+  const i = reorderList.findIndex(v => v.id === String(id));
+  const j = i + delta;
+  if (i < 0 || j < 0 || j >= reorderList.length) return;
+  [reorderList[i], reorderList[j]] = [reorderList[j], reorderList[i]];
+  renderReorderList();
+}
+function moveItemToTop(id) {
+  const i = reorderList.findIndex(v => v.id === String(id));
+  if (i < 0) return;
+  reorderList.unshift(...reorderList.splice(i, 1));
+  renderReorderList();
+}
+
+async function saveOrder() {
+  const token = sessionStorage.getItem('adminToken') || '';
+  if (!token) return;
+  const order = reorderList.map(v => v.id);
+
+  const res = await fetch('/api/admin/videos/reorder', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    body: JSON.stringify({ order })
+  });
+
+  if (res.ok) {
+    if (typeof showToast === 'function') showToast('Đã lưu thứ tự mới');
+    const modal = document.getElementById('reorderModal');
+    if (modal) modal.style.display = 'none';
+    // Reload lại bảng (mặc định bạn đang xem "Mới nhất")
+    if (typeof loadVideos === 'function') loadVideos();
+  } else {
+    alert('Lưu thất bại');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btnOpen = document.getElementById('openReorder');
+  const btnSave = document.getElementById('saveOrder');
+  const modal   = document.getElementById('reorderModal');
+
+  btnOpen && btnOpen.addEventListener('click', openReorderModal);
+  btnSave && btnSave.addEventListener('click', saveOrder);
+
+  modal && modal.addEventListener('click', (e) => {
+    if (e.target.classList.contains('close') || e.target.id === 'reorderModal') {
+      modal.style.display = 'none';
+    }
+    if (e.target.classList.contains('up'))   moveItem(e.target.dataset.id, -1);
+    if (e.target.classList.contains('down')) moveItem(e.target.dataset.id, +1);
+    if (e.target.classList.contains('top'))  moveItemToTop(e.target.dataset.id);
+  });
+});
+// ====== HẾT ======
+
+
+
 // Export functions globally
 window.initCurrentPage = initCurrentPage;
 window.initDashboard = initDashboard;

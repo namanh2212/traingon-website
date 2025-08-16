@@ -383,6 +383,48 @@ app.get('/api/admin/videos', requireAuth, async (req, res) => {
   }
 });
 
+
+
+// PATCH /api/admin/videos/reorder  — Lưu thứ tự & "chạm" lại createdAt để mục Mới nhất khớp thứ tự thủ công
+app.patch('/api/admin/videos/reorder', requireAuth, async (req, res) => {
+  try {
+    const { order } = req.body;
+    if (!Array.isArray(order) || order.length === 0) {
+      return res.status(400).json({ error: 'Invalid order' });
+    }
+
+    const videos = await readVideos();
+    const byId   = new Map(videos.map(v => [String(v.id), v]));
+    const idSet  = new Set(order.map(String));
+
+    // Ghép danh sách theo thứ tự mới (các id không có trong order sẽ đẩy xuống cuối)
+    const sorted = [];
+    for (const id of order) {
+      const v = byId.get(String(id));
+      if (v) sorted.push(v);
+    }
+    for (const v of videos) {
+      if (!idSet.has(String(v.id))) sorted.push(v);
+    }
+
+    // 🔑 Cập nhật createdAt/updatedAt theo thứ tự mới (mỗi item lệch 1 giây)
+    const base = Date.now();
+    sorted.forEach((v, idx) => {
+      const iso = new Date(base - idx * 1000).toISOString();
+      v.createdAt = iso;
+      v.updatedAt = iso;
+    });
+
+    await writeVideos(sorted);
+    res.json({ message: 'Reordered', total: sorted.length });
+  } catch (err) {
+    console.error('Reorder error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
 // Get single video by ID (admin)
 app.get('/api/admin/videos/:id', requireAuth, async (req, res) => {
   try {

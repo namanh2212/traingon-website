@@ -173,7 +173,7 @@ async function loadVideos() {
     const pagination = document.getElementById('pagination');
     
     // Show skeleton
-    videoGrid.style.display = 'none';
+    videoGrid.style.visibility = 'hidden';
     loadingSkeleton.style.display = 'grid';
     pagination.innerHTML = '';
     
@@ -192,7 +192,7 @@ async function loadVideos() {
         
         // Hide skeleton and remove searching state
         loadingSkeleton.style.display = 'none';
-        videoGrid.style.display = 'grid';
+        videoGrid.style.visibility = 'visible';
         
         const searchInput = document.getElementById('searchInput');
         const mobileSearchInput = document.getElementById('mobileSearchInput');
@@ -305,7 +305,8 @@ function renderVideos(videos) {
     videoCard.href = '/video.html?id=' + video.id;
         videoCard.innerHTML = `
             <div class="video-thumbnail">
-                <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" 
+                <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" decoding="async"
+		     width="1280" height="720" 
                      onerror="this.src='/images/placeholder.jpg'">
                 <div class="video-duration">${video.duration}</div>
             </div>
@@ -405,14 +406,29 @@ document.addEventListener('DOMContentLoaded', () => {
         loadVideos();
     }, 100);
     
-    // Handle window resize for responsive items per page
-    let resizeTimeout;
-    window.addEventListener('resize', () => {
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            if (!isLoading) {
-                loadVideos();
-            }
-        }, 300);
-    });
+    // Handle window resize: chỉ reload khi đổi breakpoint (xs/sm/md/lg)
+let resizeTimeout;
+let __sizeBucket = getSizeBucket(); // lưu bucket hiện tại
+
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    const b = getSizeBucket();
+    if (b !== __sizeBucket && !isLoading) {
+      __sizeBucket = b;
+      loadVideos(); // chỉ gọi khi đổi bucket
+    }
+  }, 200);
+});
+
+function getSizeBucket() {
+  const w = window.innerWidth;
+  if (w <= 480) return 'xs';
+  if (w <= 768) return 'sm';
+  if (w <= 1199) return 'md';
+  return 'lg';
+}
+
+
+
 });

@@ -392,25 +392,6 @@
 
 <script type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>
 
-<!-- ==== EXO OVERLAY: JS (xóa block này để tắt) ==== -->
-<script>
-(function(){
-  var gate = document.getElementById('exoGate');
-  if (!gate) return;
-
-  // Chỉ ăn 1 click/1 session. Muốn lần nào vào cũng ăn click thì xóa 3 dòng sessionStorage.
-  if (sessionStorage.getItem('exo_gate_done') === '1') { gate.remove(); return; }
-
-  gate.addEventListener('click', function(){
-    sessionStorage.setItem('exo_gate_done', '1');
-    // KHÔNG chặn sự kiện (để ExoClick bắt được click)
-    gate.remove(); // bỏ lớp phủ sau 1 lần
-  }, { passive:true });
-})();
-</script>
-<!-- ==== /EXO OVERLAY ==== -->
-
-
     <script src="/js/video.js"></script>
 </body>
 </html>

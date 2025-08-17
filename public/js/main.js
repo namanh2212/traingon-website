@@ -185,7 +185,14 @@ async function loadVideos() {
             search: currentSearch
         });
         
-        console.log('Loading videos with params:', Object.fromEntries(params));
+	
+
+        // Mobile = 16 / trang, PC giữ nguyên như hiện tại
+if (window.matchMedia('(max-width: 768px)').matches) {
+  params.set('limit','20');
+}
+
+	console.log('Loading videos with params:', Object.fromEntries(params));
         
         const response = await fetch(`/api/videos?${params}`);
         const data = await response.json();

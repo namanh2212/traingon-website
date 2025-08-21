@@ -60,6 +60,34 @@ function initDashboard() {
     loadVideos();
 }
 
+// ==== B2 AUTO-NORMALIZE (friendly endpoint -> cần /file/) ====
+function __b2_buildCacheUrl(bucket, key, search) {
+  const safePath = String(key).split('/').filter(Boolean)
+    .map(seg => encodeURIComponent(decodeURIComponent(seg.replace(/\+/g, ' '))))
+    .join('/');
+  return `https://b2.traingon.top/file/${encodeURIComponent(bucket)}/${safePath}${search || ''}`;
+}
+function normalizeB2(url) {
+  if (!url || typeof url !== 'string') return (url||'').trim();
+  url = url.trim();
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (host.startsWith('f') && host.endsWith('.backblazeb2.com') && parts[0]==='file' && parts.length>=3) {
+      const bucket = parts[1]; const key = parts.slice(2).join('/'); return __b2_buildCacheUrl(bucket,key,u.search);
+    }
+    if (/\.s3\.[^/]+\.backblazeb2\.com$/.test(host)) {
+      const bucket = host.split('.s3.')[0]; const key = u.pathname.replace(/^\/+/,''); return key?__b2_buildCacheUrl(bucket,key,u.search):url;
+    }
+    if (/^s3\.[^/]+\.backblazeb2\.com$/.test(host) && parts.length>=2) {
+      const bucket = parts[0]; const key = parts.slice(1).join('/'); return __b2_buildCacheUrl(bucket,key,u.search);
+    }
+    return url;
+  } catch { return url; }
+}
+
+
 // Show/hide loading skeleton - CHỈ CHO DASHBOARD
 function showLoadingSkeleton() {
     const loadingSkeleton = document.getElementById('loadingSkeleton');
@@ -200,7 +228,7 @@ function initAddVideoForm() {
     initCategoryHandling();
     initTagsHandling();
     initNotesCounter();
-    
+
     // Form submission
     form.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -528,20 +556,35 @@ async function submitEditVideoForm(videoId) {
             embedUrls.push(input.value.trim());
         }
     }
+
+    // VIDEO: chỉ normalize khi có ĐÚNG 1 URL
+if (Array.isArray(embedUrls) && embedUrls.length === 1) {
+  const normalized = normalizeB2(embedUrls[0]);
+  embedUrls[0] = normalized;
+  const onlyInput = document.querySelector('input[name="embedUrl1"]');
+  if (onlyInput) onlyInput.value = normalized;
+}
+
+
     formData.set('embedUrls', JSON.stringify(embedUrls));
     
     // Add tags
     formData.set('tags', JSON.stringify(tags));
     
     // Add thumbnail URL if using URL option
-    const thumbnailType = document.querySelector('input[name="thumbnailType"]:checked')?.value;
-    if (thumbnailType === 'url') {
-        const thumbnailUrlInput = document.getElementById('thumbnailUrlInput');
-        if (thumbnailUrlInput) {
-            formData.set('thumbnailUrl', thumbnailUrlInput.value);
-        }
-        formData.delete('thumbnail');
-    }
+    // THUMB: luôn normalize khi dùng URL (1 link)
+const thumbnailType = document.querySelector('input[name="thumbnailType"]:checked')?.value;
+if (thumbnailType === 'url') {
+  const el = document.getElementById('thumbnailUrlInput');
+  const raw = (el?.value || '').trim();
+  if (raw) {
+    const norm = normalizeB2(raw);
+    if (el) el.value = norm;
+    formData.set('thumbnailUrl', norm);
+  }
+  formData.delete('thumbnail');
+}
+
     
     try {
         const response = await fetch(`/api/admin/videos/${videoId}`, {
@@ -1030,20 +1073,35 @@ async function submitVideoForm(saveAndNew = false) {
             embedUrls.push(input.value.trim());
         }
     }
+
+    // VIDEO: chỉ normalize khi có ĐÚNG 1 URL
+if (Array.isArray(embedUrls) && embedUrls.length === 1) {
+  const normalized = normalizeB2(embedUrls[0]);
+  embedUrls[0] = normalized;
+  const onlyInput = document.querySelector('input[name="embedUrl1"]');
+  if (onlyInput) onlyInput.value = normalized;
+}
+
+
     formData.set('embedUrls', JSON.stringify(embedUrls));
     
     // Add tags
     formData.set('tags', JSON.stringify(tags));
     
     // Add thumbnail URL if using URL option
-    const thumbnailType = document.querySelector('input[name="thumbnailType"]:checked')?.value;
-    if (thumbnailType === 'url') {
-        const thumbnailUrlInput = document.getElementById('thumbnailUrlInput');
-        if (thumbnailUrlInput) {
-            formData.set('thumbnailUrl', thumbnailUrlInput.value);
-        }
-        formData.delete('thumbnail');
-    }
+    // THUMB: luôn normalize khi dùng URL (1 link)
+const thumbnailType = document.querySelector('input[name="thumbnailType"]:checked')?.value;
+if (thumbnailType === 'url') {
+  const el = document.getElementById('thumbnailUrlInput');
+  const raw = (el?.value || '').trim();
+  if (raw) {
+    const norm = normalizeB2(raw);
+    if (el) el.value = norm;
+    formData.set('thumbnailUrl', norm);
+  }
+  formData.delete('thumbnail');
+}
+
     
     try {
         const response = await fetch('/api/admin/videos', {

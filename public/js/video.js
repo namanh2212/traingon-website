@@ -262,31 +262,25 @@ function navigateToVideo(videoId) {
 
 // Setup mobile chat
 function setupMobileChat() {
-    const screenWidth = window.innerWidth;
-    const desktopChat = document.querySelector('.desktop-chat');
-    const mobileChat = document.querySelector('.mobile-chat');
-    
-    if (screenWidth <= 1023) {
-        if (desktopChat) desktopChat.style.display = 'none';
-        if (mobileChat) mobileChat.style.display = 'block';
-        
-        // Setup mobile chat accordion
-        const chatAccordion = document.querySelector('.chat-accordion');
-        const chatContent = document.querySelector('.chat-content');
-        
-        if (chatAccordion && chatContent) {
-            chatAccordion.addEventListener('click', () => {
-                chatContent.classList.toggle('active');
-                chatAccordion.textContent = chatContent.classList.contains('active') 
-                    ? '💬 Đóng Chat Room' 
-                    : '💬 Mở Chat Room';
-            });
-        }
-    } else {
-        if (desktopChat) desktopChat.style.display = 'block';
-        if (mobileChat) mobileChat.style.display = 'none';
-    }
+  const isMobile = window.innerWidth <= 1023;
+  const desktopChat = document.querySelector('.desktop-chat');
+  const mobileChat = document.querySelector('.mobile-chat');
+  const chatAccordion = document.querySelector('.chat-accordion');
+  const chatContent = document.querySelector('.chat-content');
+
+  if (isMobile) {
+    if (desktopChat) desktopChat.style.display = 'none';
+    if (mobileChat) mobileChat.style.display = 'block';
+
+    // Ẩn nút mở/đóng và MỞ SẴN chat
+    if (chatAccordion) chatAccordion.style.display = 'none';
+    if (chatContent) chatContent.classList.add('active');
+  } else {
+    if (desktopChat) desktopChat.style.display = 'block';
+    if (mobileChat) mobileChat.style.display = 'none';
+  }
 }
+
 
 // Format views count
 function formatViews(views) {

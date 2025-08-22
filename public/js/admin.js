@@ -378,14 +378,11 @@ function populateEditForm(video) {
     const thumbnailPreview = document.getElementById('thumbnailPreview');
     
     if (video.thumbnail) {
-        if (thumbnailUrlInput) thumbnailUrlInput.value = video.thumbnail;
-        if (thumbnailPreview && video.thumbnail) {
-            thumbnailPreview.innerHTML = `
-                <img src="${video.thumbnail}" alt="Current thumbnail">
-                <div class="preview-info">Current thumbnail</div>
-            `;
-        }
+  const norm = normalizeB2(video.thumbnail);
+  if (thumbnailUrlInput) thumbnailUrlInput.value = norm;
+  previewThumbnailUrl(norm);
     }
+
     
     // Duration
     const durationInput = document.getElementById('duration');
@@ -883,13 +880,19 @@ function initThumbnailHandling() {
     
     // URL preview
     if (thumbnailUrlInput) {
-        thumbnailUrlInput.addEventListener('blur', (e) => {
-            const url = e.target.value.trim();
-            if (url) {
-                previewThumbnailUrl(url);
-            }
-        });
+  const applyThumb = (val) => {
+    const raw = (val || '').trim();
+    if (!raw) return;
+    const norm = normalizeB2(raw);
+    thumbnailUrlInput.value = norm;  // cập nhật để nhìn thấy đã đổi
+    previewThumbnailUrl(norm);       // preview qua CDN -> cache
+  };
+
+  thumbnailUrlInput.addEventListener('blur',  (e) => applyThumb(e.target.value));
+  thumbnailUrlInput.addEventListener('change',(e) => applyThumb(e.target.value));
+  thumbnailUrlInput.addEventListener('paste', () => setTimeout(() => applyThumb(thumbnailUrlInput.value), 0));
     }
+
     
     // File upload
     if (uploadArea && thumbnailFile) {
@@ -929,14 +932,16 @@ function initThumbnailHandling() {
 
 // Preview thumbnail URL
 function previewThumbnailUrl(url) {
-    const preview = document.getElementById('thumbnailPreview');
-    if (preview) {
-        preview.innerHTML = `
-            <img src="${url}" alt="Thumbnail preview" onerror="this.parentElement.innerHTML='<p style=color:#ff4757;>Không thể tải ảnh</p>'">
-            <div class="preview-info">Preview thumbnail</div>
-        `;
-    }
+  const norm = normalizeB2(url);
+  const preview = document.getElementById('thumbnailPreview');
+  if (preview) {
+    preview.innerHTML = `
+      <img src="${norm}" alt="Thumbnail preview" onerror="this.parentElement.innerHTML='<p style=color:#ff4757;>Không thể tải ảnh</p>'">
+      <div class="preview-info">Preview thumbnail</div>
+    `;
+  }
 }
+
 
 // Preview thumbnail file
 function previewThumbnailFile(file) {

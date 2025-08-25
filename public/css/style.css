@@ -1054,3 +1054,45 @@ body {
 
 .video-card { display:block; text-decoration:none; color:inherit; }
 .video-card:visited { color:inherit; }
+
+/* Floating Chat (Home) */
+.chat-fab {
+  position: fixed; right: 16px; bottom: 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: linear-gradient(180deg,#1f1f28,#14141b);
+  color: #fff; border: 1px solid rgba(255,255,255,.14);
+  border-radius: 14px; padding: 10px 12px;
+  box-shadow: 0 6px 18px rgba(0,0,0,.45);
+  cursor: pointer; z-index: 9997;
+}
+.chat-fab .chat-icon { font-size: 20px; line-height: 1; }
+.chat-fab .chat-text { font-size: 12px; opacity: .9; text-transform: lowercase; }
+
+.chat-panel {
+  position: fixed; right: 16px; bottom: 72px;
+  width: min(420px, 92vw); height: 60vh;
+  background: #0f0f15; border: 1px solid rgba(255,255,255,.14);
+  border-radius: 16px; box-shadow: 0 16px 40px rgba(0,0,0,.6);
+  overflow: hidden; display: none; z-index: 9998; /* thấp hơn age-gate (9999) */
+}
+.chat-panel.open { display: block; }
+.chat-panel .chat-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: rgba(255,255,255,.06);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.chat-panel iframe { width: 100%; height: calc(100% - 44px); border: 0; background: #11121a; }
+
+.chat-close { background: transparent; border: 0; color: #ccc; font-size: 16px; cursor: pointer; }
+.chat-close:hover { color: #fff; }
+
+.chat-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  display: none; z-index: 9990; backdrop-filter: blur(2px);
+}
+.chat-backdrop.open { display: block; }
+
+@media (max-width: 480px) {
+  .chat-fab { right: 12px; bottom: 12px; padding: 8px 10px; }
+  .chat-panel { right: 8px; left: 8px; width: auto; height: 65vh; bottom: 64px; }
+}

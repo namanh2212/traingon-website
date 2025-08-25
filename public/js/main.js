@@ -439,3 +439,37 @@ function getSizeBucket() {
 
 
 });
+
+// Floating Chat (Home)
+function initFloatingChat() {
+  const btn = document.getElementById('chatToggle');
+  const panel = document.getElementById('chatPanel');
+  const closeBtn = document.getElementById('chatClose');
+  const backdrop = document.getElementById('chatBackdrop');
+  if (!btn || !panel) return;
+
+  const open = () => {
+    panel.classList.add('open');
+    backdrop?.classList.add('open');
+    localStorage.setItem('chatOpen', '1');
+  };
+  const hide = () => {
+    panel.classList.remove('open');
+    backdrop?.classList.remove('open');
+    localStorage.removeItem('chatOpen');
+  };
+
+  btn.addEventListener('click', () => {
+    panel.classList.contains('open') ? hide() : open();
+  });
+  closeBtn?.addEventListener('click', hide);
+  backdrop?.addEventListener('click', hide);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+
+  // Nếu lần trước user để mở, tự mở lại
+  if (localStorage.getItem('chatOpen') === '1') open();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  try { initFloatingChat(); } catch (e) { console.error(e); }
+});

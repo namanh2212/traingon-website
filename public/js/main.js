@@ -1,22 +1,3 @@
-// Age gate functionality
-function initAgeGate() {
-    const ageGate = document.getElementById('ageGate');
-    const enterBtn = document.getElementById('enterSite');
-    
-    // Check if user already confirmed age
-    if (localStorage.getItem('ageConfirmed') === 'true') {
-        ageGate.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-    } else {
-        document.body.style.overflow = 'hidden';
-    }
-    
-    enterBtn.addEventListener('click', () => {
-        localStorage.setItem('ageConfirmed', 'true');
-        ageGate.classList.add('hidden');
-        document.body.style.overflow = 'auto';
-    });
-}
 
 // Global state
 let currentPage = 1;
@@ -405,7 +386,6 @@ window.goToPage = goToPage;
 
 // Initialize everything
 document.addEventListener('DOMContentLoaded', () => {
-    initAgeGate();
     initSearch();
     initCategoryFilter();
     

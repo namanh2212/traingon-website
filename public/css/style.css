@@ -19,66 +19,6 @@ body {
     padding: 0 16px;
 }
 
-/* Age Gate */
-.age-gate {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(11, 11, 16, 0.95);
-    backdrop-filter: blur(10px);
-    z-index: 9999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.age-gate.hidden {
-    display: none;
-}
-
-.age-gate-content {
-    background: linear-gradient(135deg, #2b1d5a, #1a1028);
-    padding: 3rem;
-    border-radius: 16px;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    max-width: 400px;
-    width: 90%;
-}
-
-.age-gate-warning h1 {
-    font-size: 4rem;
-    font-weight: 900;
-    color: #ff6b6b;
-    margin-bottom: 1rem;
-    text-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
-}
-
-.age-gate-warning p {
-    color: #a7a7b3;
-    margin-bottom: 1rem;
-    font-size: 1.1rem;
-}
-
-.btn-enter {
-    background: linear-gradient(135deg, #ff6b6b, #ff5252);
-    color: white;
-    border: none;
-    padding: 1rem 2rem;
-    border-radius: 14px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    margin-top: 1rem;
-}
-
-.btn-enter:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
-}
 
 /* Header */
 .header {

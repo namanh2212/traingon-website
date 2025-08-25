@@ -1,102 +1,96 @@
-console.log('Auth.js loaded');
+// auth.js (cookie mode, 2 bước: login -> token)
 
-// Simple check function
-function checkAuth() {
-    const token = sessionStorage.getItem('adminToken');
-    return token === 'Adat1997$';
+function showError(msg) {
+  const el = document.getElementById('errorMessage');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  else alert(msg);
 }
 
-function logout() {
-    sessionStorage.removeItem('adminToken');
-    window.location.href = '/admin/login.html';
+// Kiểm tra trạng thái đăng nhập cho các trang admin
+async function requireAuth() {
+  try {
+    const r = await fetch('/api/auth/me', { credentials: 'include' });
+    const j = await r.json();
+    if (j.ok) return true;
+  } catch (e) { console.error(e); }
+  if (!location.pathname.endsWith('/login.html')) {
+    location.href = '/admin/login.html';
+  }
+  return false;
 }
 
-// Login page logic
+async function logout() {
+  try { await fetch('/api/auth/logout', { method: 'POST', credentials:'include' }); }
+  catch(e) {}
+  location.href = '/admin/login.html';
+}
+
+// Chỉ khởi tạo 1 lần
+let __authInitDone = false;
 function initLogin() {
-    console.log('Initializing login page');
-    
-    const loginForm = document.getElementById('loginForm');
-    const tokenForm = document.getElementById('tokenForm');
-    const errorMessage = document.getElementById('errorMessage');
+  if (__authInitDone) return;
+  __authInitDone = true;
 
-    if (!loginForm || !tokenForm) {
-        console.log('Login forms not found');
-        return;
+  const loginForm = document.getElementById('loginForm');  // bước 1
+  const tokenForm = document.getElementById('tokenForm');  // bước 2
+  const step1 = document.getElementById('loginForm');
+  const step2 = document.getElementById('tokenForm');
+
+  if (!loginForm || !tokenForm) {
+    console.warn('Login page: missing #loginForm or #tokenForm');
+    return;
+  }
+
+  let tmpUser = '', tmpPass = '';
+
+  // Bước 1: user/pass -> gọi /api/auth/check, đúng mới cho qua bước token
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    tmpUser = document.getElementById('username')?.value?.trim() || '';
+    tmpPass = document.getElementById('password')?.value || '';
+    if (!tmpUser || !tmpPass) return showError('Nhập tài khoản và mật khẩu');
+
+    const ok = await fetch('/api/auth/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ username: tmpUser, password: tmpPass })
+    }).then(r => r.ok).catch(() => false);
+
+    if (!ok) return showError('Tài khoản hoặc mật khẩu sai');
+
+    step1 && (step1.style.display = 'none');
+    step2 && (step2.style.display = '');
+  });
+
+  // Bước 2: token -> gọi /api/auth/login để set cookie HttpOnly
+  tokenForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const token = document.getElementById('token')?.value || '';
+    if (!token) return showError('Nhập token');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: tmpUser, password: tmpPass, token })
+      });
+      if (res.ok) {
+        location.href = '/admin/index.html';
+      } else {
+        showError('Sai token hoặc thông tin không khớp. Thử lại.');
+        step2 && (step2.style.display = 'none');
+        step1 && (step1.style.display = '');
+      }
+    } catch (err) {
+      console.error(err);
+      showError('Lỗi kết nối, thử lại.');
     }
-
-    // Check if already authenticated
-    if (checkAuth()) {
-        console.log('Already authenticated, redirecting to dashboard');
-        window.location.href = '/admin/dashboard.html';
-        return;
-    }
-
-    console.log('Not authenticated, showing login form');
-
-    // Handle login form
-    loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        
-        console.log('Login attempt for:', username);
-        
-        if (username === 'admin' && password === 'Adat1997') {
-            loginForm.style.display = 'none';
-            tokenForm.style.display = 'block';
-            if (errorMessage) errorMessage.style.display = 'none';
-            console.log('Credentials correct, showing token form');
-        } else {
-            showError('Tài khoản hoặc mật khẩu không đúng');
-        }
-    });
-
-    // Handle token form
-    tokenForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-        
-        const token = document.getElementById('token').value;
-        
-        console.log('Token verification attempt');
-        
-        if (token === 'Adat1997$') {
-            sessionStorage.setItem('adminToken', token);
-            console.log('Token correct, redirecting to dashboard');
-            window.location.href = '/admin/dashboard.html';
-        } else {
-            showError('Token không đúng');
-        }
-    });
-
-    function showError(message) {
-        if (errorMessage) {
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
-        }
-        console.log('Error:', message);
-    }
+  });
 }
 
-// Admin page protection
-function requireAuth() {
-    console.log('Checking authentication for admin page');
-    console.log('Current path:', window.location.pathname);
-    
-    if (!checkAuth()) {
-        console.log('Not authenticated, redirecting to login');
-        window.location.href = '/admin/login.html';
-        return false;
-    }
-    
-    console.log('Authentication OK');
-    return true;
-}
-
-// Export functions globally
-window.checkAuth = checkAuth;
+// Export ra global cho login.html gọi
+window.requireAuth = requireAuth;
 window.logout = logout;
 window.initLogin = initLogin;
-window.requireAuth = requireAuth;
-
-console.log('Auth functions exported globally');

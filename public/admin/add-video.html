@@ -163,13 +163,12 @@
     <script src="/js/auth.js"></script>
     <script src="/js/admin.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('=== ADD VIDEO PAGE LOADED ===');
-            console.log('Current URL:', window.location.href);
-            
-            // CHỈ GỌI initAddVideoForm CHO TRANG ADD VIDEO
-            initAddVideoForm();
-        });
-    </script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    const ok = await requireAuth();
+    if (!ok) return;
+    initAddVideoForm();
+  });
+</script>
+
 </body>
 </html>

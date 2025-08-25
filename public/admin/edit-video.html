@@ -201,19 +201,11 @@
     <script src="/js/auth.js"></script>
     <script src="/js/admin.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('=== EDIT VIDEO PAGE LOADED ===');
-            console.log('Current URL:', window.location.href);
-            
-            // Check auth first
-            if (!requireAuth()) {
-                return;
-            }
-            
-            console.log('Auth OK, initializing edit video form');
-            // SỬA: GỌI initEditVideoForm THAY VÌ initDashboard
-            initEditVideoForm();
-        });
+        document.addEventListener('DOMContentLoaded', async () => {
+   const ok = await requireAuth();
+   if (!ok) return;
+   initEditVideoForm();
+ });
     </script>
 </body>
 </html>

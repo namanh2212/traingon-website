@@ -944,3 +944,68 @@ body {
 #reorderList li{display:flex;align-items:center;gap:.5rem;background:#1d1d33;padding:.5rem .75rem;border-radius:8px}
 #reorderList .ttl{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 #reorderList .act button{margin-left:.25rem}
+
+/* === Modal Sắp xếp video — FINAL (sticky save, nút nhỏ, căn phải) === */
+.reorder-modal{
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  display: none;               /* JS sẽ set = flex khi mở */
+  align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.reorder-modal .box{
+  width: min(720px, 92vw);
+  max-height: 80vh;
+  display: flex; flex-direction: column;   /* để footer sticky hoạt động đúng */
+  background: #0f0f18;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.4);
+}
+.reorder-modal .hdr{
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.reorder-modal .hdr h3{ font-size: 1rem; }
+.reorder-modal .hdr .close{
+  background: transparent; border: 0; color: #eaeaea; font-size: 1rem; cursor: pointer;
+}
+
+/* Danh sách sắp xếp — vùng cuộn */
+#reorderList{
+  list-style: decimal; padding-left: 1.25rem; margin: 0;
+  flex: 1 1 auto; overflow: auto;               /* quan trọng: phần cuộn */
+  display: flex; flex-direction: column; gap: .5rem;
+}
+#reorderList li{
+  display: flex; align-items: center; gap: .5rem;
+  background: #1d1d33; padding: .5rem .75rem; border-radius: 8px;
+}
+#reorderList .ttl{
+  flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+#reorderList .act button{ margin-left: .25rem; }
+
+/* Footer sticky + nút nhỏ gọn, nằm bên phải */
+.reorder-modal .foot{
+  position: sticky; bottom: 0; left: 0; right: 0;
+  display: flex; justify-content: flex-end; align-items: center;
+  padding: .5rem .75rem; margin-top: .5rem;
+  background: rgba(20,20,24,.35);              /* nền nhẹ, không đen sì */
+  backdrop-filter: blur(4px);
+  border-top: 1px solid rgba(255,255,255,.12);
+  z-index: 10;
+}
+.reorder-modal .foot .btn-primary{
+  width: auto !important;                      /* luôn nhỏ gọn */
+  padding: .4rem .75rem;                       /* bé lại */
+  font-size: .85rem; line-height: 1.2;
+  border-radius: .5rem;
+}
+@media (max-width: 480px){
+  .reorder-modal .foot .btn-primary{
+    font-size: .8125rem; padding: .35rem .65rem;
+  }
+}
+

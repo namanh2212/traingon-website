@@ -1181,13 +1181,17 @@ function updateEmbedInputs(count) {
 
 // Utility functions
 function formatViews(views) {
-    if (views >= 1000000) {
-        return Math.floor(views / 1000000) + 'M';
-    } else if (views >= 1000) {
-        return Math.floor(views / 1000) + 'K';
-    }
-    return views.toString();
+  const oneDecimal = (n) => n.toFixed(1).replace(/\.0$/, '');
+  if (views >= 1000000000) {        // 1B+
+    return oneDecimal(views / 1000000000) + 'B';
+  } else if (views >= 1000000) {    // 1M+
+    return oneDecimal(views / 1000000) + 'M';
+  } else if (views >= 1000) {       // 1K+
+    return oneDecimal(views / 1000) + 'K';
+  }
+  return views.toString();
 }
+
 
 function formatDate(dateString) {
     const date = new Date(dateString);

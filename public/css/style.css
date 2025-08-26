@@ -343,11 +343,14 @@ body {
 /* Pagination */
 .pagination {
     display: flex;
-    justify-content: center;
-    align-items: center;
     gap: 0.5rem;
     margin-top: 2rem;
+    overflow-x: auto;                 /* Cho cuộn ngang */
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;              /* Giữ các nút trên 1 dòng */
+    scrollbar-width: none;            /* Ẩn scrollbar (Firefox) */
 }
+.pagination::-webkit-scrollbar { display: none; }  /* Ẩn scrollbar (WebKit) */
 
 .pagination-btn {
     background: rgba(255, 255, 255, 0.1);

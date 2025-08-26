@@ -22,9 +22,30 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
-app.use((req, res, next) => {
-  if (req.path === '/video.html') res.set('X-Robots-Tag', 'noindex, follow');
-  next();
+
+// Serve /video.html nhưng bỏ mọi meta robots và chèn canonical về /watch
+app.get('/video.html', async (req, res) => {
+  try {
+    const id = String(req.query.id || '');
+    let html = await fs.readFile(path.join(__dirname, 'public', 'video.html'), 'utf8');
+    // Bỏ bất kỳ meta robots nào trong file gốc
+    html = html.replace(/<meta[^>]*name=['"]robots['"][^>]*>\s*/i, '');
+    if (id) {
+      const raw = await fs.readFile(DATA_FILE, 'utf8');
+      const videos = JSON.parse(raw);
+      const v = videos.find(x => String(x.id) === id);
+      const s = slugify(v?.title || id);
+      const canonical = `${siteOrigin(req)}/watch/${id}/${s}`;
+      if (v?.title) {
+        html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(v.title)} — Traingon</title>`);
+      }
+      html = html.replace('</head>', `<link rel="canonical" href="${canonical}">\n</head>`);
+    }
+    res.status(200).send(html);
+  } catch (e) {
+    console.error(e);
+    res.sendFile(path.join(__dirname, 'public', 'video.html'));
+  }
 });
 
 
@@ -499,12 +520,13 @@ const slugify = s => String(s || '')
 const siteOrigin = (req) => (req.headers['x-forwarded-proto'] || req.protocol) + '://' + req.get('host');
 
 // Trang SEO cho từng video: có <title> + JSON-LD, người dùng sẽ được redirect sang video.html
+// === SEO-first watch page: render full player (no JS redirect) ===
 app.get('/watch/:id/:slug?', async (req, res) => {
   try {
     const id = String(req.params.id);
     const raw = await fs.readFile(DATA_FILE, 'utf8');
     const videos = JSON.parse(raw);
-    const v = videos.find(x => String(x.id) === id && x);        // có thể lọc published nếu cần
+    const v = videos.find(x => String(x.id) === id);
     if (!v) return res.status(404).send('Not found');
 
     const origin = siteOrigin(req);
@@ -513,12 +535,22 @@ app.get('/watch/:id/:slug?', async (req, res) => {
     const thumb = v.thumbnail || '';
     const uploadDate = (v.createdAt || '').slice(0,10);
 
-    res.set('Cache-Control','public, max-age=3600');
-    res.status(200).send(`<!doctype html><html lang="vi"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(v.title)} — Traingon</title>
+    // Nạp template gốc public/video.html rồi “vá” <head>
+    let html = await fs.readFile(path.join(__dirname, 'public', 'video.html'), 'utf8');
+    html = html.replace(/<meta[^>]*name=['"]robots['"][^>]*>\s*/i, ''); // bỏ noindex nếu còn
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(v.title)} — Traingon</title>`);
+    const headInject = `
 <link rel="canonical" href="${canonical}">
-<meta name="description" content="${escapeHtml(v.description || v.title || 'Xem video nhanh, không đăng ký')}">
+<meta property="og:type" content="video.other">
+<meta property="og:site_name" content="Traingon">
+<meta property="og:title" content="${escapeHtml(v.title)} — Traingon">
+<meta property="og:description" content="${escapeHtml(v.description || v.title || 'Watch now')}">
+<meta property="og:url" content="${canonical}">
+<meta property="og:image" content="${thumb}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(v.title)} — Traingon">
+<meta name="twitter:description" content="${escapeHtml(v.description || v.title || 'Watch now')}">
+<meta name="twitter:image" content="${thumb}">
 <script type="application/ld+json">${JSON.stringify({
   "@context":"https://schema.org",
   "@type":"VideoObject",
@@ -526,17 +558,17 @@ app.get('/watch/:id/:slug?', async (req, res) => {
   "url": canonical,
   "thumbnailUrl": thumb,
   "uploadDate": uploadDate
-})}</script>
-</head><body>
-<h1 style="position:absolute;left:-9999px;">${escapeHtml(v.title)}</h1>
-<script>location.replace('/video.html?id=${id}');</script>
-<noscript><a href="/video.html?id=${id}">Xem video</a></noscript>
-</body></html>`);
+})}</script>`;
+    html = html.replace('</head>', headInject + '\n</head>');
+
+    res.set('Cache-Control','public, max-age=3600');
+    res.status(200).send(html);
   } catch (e) {
     console.error(e);
     res.redirect('/');
   }
 });
+
 
 // Sitemap tự sinh từ data/videos.json (bao gồm tất cả video cũ & mới)
 app.get('/sitemap.xml', async (req, res) => {

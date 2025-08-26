@@ -2,10 +2,13 @@ let currentVideo = null;
 let currentServerIndex = 0;
 
 // Get video ID from URL
+// Hỗ trợ cả /watch/:id/:slug và /video.html?id=
 function getVideoId() {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('id');
+  const m = location.pathname.match(/^\/watch\/([^\/]+)/);
+  if (m) return m[1];
+  return new URLSearchParams(location.search).get('id');
 }
+
 
 // Load video data
 async function loadVideo() {

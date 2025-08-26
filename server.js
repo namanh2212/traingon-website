@@ -21,6 +21,13 @@ app.use(helmet({
 app.use(compression());
 app.use(cors());
 app.use(express.json());
+
+app.use((req, res, next) => {
+  if (req.path === '/video.html') res.set('X-Robots-Tag', 'noindex, follow');
+  next();
+});
+
+
 app.use(express.static('public'));
 
 app.use(cookieParser());
@@ -481,6 +488,109 @@ app.get('/admin/add-video.html', (req, res) => {
 app.get('/admin/edit-video.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin', 'edit-video.html'));
 });
+
+// === [SEO] /watch/:id/:slug + /sitemap.xml (auto từ data/videos.json) ===
+const escapeHtml = s => String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const slugify = s => String(s || '')
+  .toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // bỏ dấu tiếng Việt
+  .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+
+const siteOrigin = (req) => (req.headers['x-forwarded-proto'] || req.protocol) + '://' + req.get('host');
+
+// Trang SEO cho từng video: có <title> + JSON-LD, người dùng sẽ được redirect sang video.html
+app.get('/watch/:id/:slug?', async (req, res) => {
+  try {
+    const id = String(req.params.id);
+    const raw = await fs.readFile(DATA_FILE, 'utf8');
+    const videos = JSON.parse(raw);
+    const v = videos.find(x => String(x.id) === id && x);        // có thể lọc published nếu cần
+    if (!v) return res.status(404).send('Not found');
+
+    const origin = siteOrigin(req);
+    const s = slugify(v.title || id);
+    const canonical = `${origin}/watch/${id}/${s}`;
+    const thumb = v.thumbnail || '';
+    const uploadDate = (v.createdAt || '').slice(0,10);
+
+    res.set('Cache-Control','public, max-age=3600');
+    res.status(200).send(`<!doctype html><html lang="vi"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(v.title)} — Traingon</title>
+<link rel="canonical" href="${canonical}">
+<meta name="description" content="${escapeHtml(v.description || v.title || 'Xem video nhanh, không đăng ký')}">
+<script type="application/ld+json">${JSON.stringify({
+  "@context":"https://schema.org",
+  "@type":"VideoObject",
+  "name": v.title,
+  "url": canonical,
+  "thumbnailUrl": thumb,
+  "uploadDate": uploadDate
+})}</script>
+</head><body>
+<h1 style="position:absolute;left:-9999px;">${escapeHtml(v.title)}</h1>
+<script>location.replace('/video.html?id=${id}');</script>
+<noscript><a href="/video.html?id=${id}">Xem video</a></noscript>
+</body></html>`);
+  } catch (e) {
+    console.error(e);
+    res.redirect('/');
+  }
+});
+
+// Sitemap tự sinh từ data/videos.json (bao gồm tất cả video cũ & mới)
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const origin = siteOrigin(req); // hàm này đã có sẵn ở trên
+    const raw = await fs.readFile(DATA_FILE, 'utf8');
+    const videos = JSON.parse(raw);
+
+    // helper: định dạng YYYY-MM-DD
+    const fmt = d => {
+      try {
+        const t = d ? new Date(d) : null;
+        return t ? t.toISOString().slice(0,10) : '';
+      } catch { return ''; }
+    };
+
+    // lastmod cho trang chủ = ngày mới nhất trong dữ liệu
+    const newest = videos.reduce((m, v) => {
+      const t = Date.parse(v.updatedAt || v.createdAt || '');
+      return isNaN(t) ? m : Math.max(m, t);
+    }, 0);
+    const homeLastmod = newest ? fmt(new Date(newest)) : '';
+
+    const items = videos
+      .filter(v => v && v.id && v.published !== false)
+      .map(v => {
+        const s = slugify(v.title || v.id); // slugify đã khai báo ở trên
+        const lastmod = fmt(v.updatedAt || v.createdAt);
+        return `<url>
+  <loc>${origin}/watch/${v.id}/${s}</loc>
+  <changefreq>weekly</changefreq>
+  ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}
+</url>`;
+      }).join('\n');
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${origin}/</loc>
+    <changefreq>daily</changefreq>
+    ${homeLastmod ? `<lastmod>${homeLastmod}</lastmod>` : ''}
+  </url>
+  ${items}
+</urlset>`;
+
+    res.set('Cache-Control','public, max-age=3600');
+    res.type('application/xml').send(xml);
+  } catch (e) {
+    console.error(e);
+    res.type('text/plain').status(500).send('sitemap error');
+  }
+});
+
+
 
 // Initialize and start server
 async function startServer() {

@@ -290,7 +290,11 @@ function renderVideos(videos) {
     videos.forEach(video => {
         const videoCard = document.createElement('a');
         videoCard.className = 'video-card';
-    videoCard.href = '/video.html?id=' + video.id;
+    const slug = (video.title || '').toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+videoCard.href = '/watch/' + video.id + '/' + slug;
+
         videoCard.innerHTML = `
             <div class="video-thumbnail">
                 <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" decoding="async"

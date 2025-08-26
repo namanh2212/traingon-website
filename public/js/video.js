@@ -212,7 +212,10 @@ async function loadRelatedVideos() {
         
         // Render related videos
         relatedGrid.innerHTML = relatedVideos.map(video => `
-            <a class="video-card related-video-card" href="/video.html?id=${video.id}">
+            <a class="video-card related-video-card" href="/watch/${video.id}/${(video.title||'').toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')}">
+
                 <div class="video-thumbnail">
                     <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" onerror="this.src='/images/placeholder.jpg'">
                     <div class="video-duration">${video.duration}</div>
@@ -255,10 +258,14 @@ async function loadRelatedVideos() {
 }
 
 // Function to navigate to another video
-function navigateToVideo(videoId) {
-    console.log('Navigating to video:', videoId);
-    window.location.href = `/video.html?id=${videoId}`;
+function navigateToVideo(videoId, title) {
+  const base = (title || (currentVideo && currentVideo.title) || '');
+  const slug = base.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  window.location.href = `/watch/${videoId}/${slug}`;
 }
+
 
 // Setup mobile chat
 function setupMobileChat() {

@@ -517,7 +517,13 @@ const slugify = s => String(s || '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // bỏ dấu tiếng Việt
   .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 
-const siteOrigin = (req) => (req.headers['x-forwarded-proto'] || req.protocol) + '://' + req.get('host');
+const siteOrigin = (req) => {
+  const host = req.headers['x-forwarded-host'] || req.get('host') || req.headers.host;
+  if (!host) return 'https://traingon.top'; // phòng hờ
+  const isLocal = /^localhost(:\d+)?$|^127\.0\.0\.1(:\d+)?$/.test(host);
+  const proto = isLocal ? 'http' : 'https';
+  return `${proto}://${host}`;
+};
 
 // Trang SEO cho từng video: có <title> + JSON-LD, người dùng sẽ được redirect sang video.html
 // === SEO-first watch page: render full player (no JS redirect) ===

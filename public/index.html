@@ -20,13 +20,20 @@
                     <span class="logo-text">Traingon.top</span>
                 </a>
                 
+                <button class="menu-toggle" id="menuToggle" aria-label="Mở menu" aria-expanded="false" aria-controls="mobileNav">
+  <!-- icon 3 sọc -->
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/>
+  </svg>
+</button>
+
                 <nav class="nav">
-                    <a href="/" class="nav-link active">Video New</a>
-                    <a >Gaydar</a>
-                    <a >Asian</a>
-                    <a >Japan</a>
-                    <a >Magazine</a>
+                    <a href="/?category=all"   class="nav-link">Tất cả</a>
+                    <a href="/?category=gaydar" class="nav-link">Gaydar</a>
+                    <a href="/?category=asian"  class="nav-link">Asian</a>
+                    <a href="/?category=japan"  class="nav-link">Japan</a>
                 </nav>
+
                 
 
                 
@@ -50,19 +57,24 @@
                 <input type="text" id="mobileSearchInput" placeholder="Tìm kiếm video..." class="mobile-search-input">
                 <button class="mobile-search-close">✕</button>
             </div>
+
+            <nav class="mobile-nav" id="mobileNav" aria-hidden="true">
+  <a href="/?category=all"    class="nav-link">Tất cả</a>
+  <a href="/?category=gaydar" class="nav-link">Gaydar</a>
+  <a href="/?category=asian"  class="nav-link">Asian</a>
+  <a href="/?category=japan"  class="nav-link">Japan</a>
+</nav>
+
+
+            <div class="nav-backdrop" id="navBackdrop"></div>
+
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="main">
         <div class="container">
-            <!-- Category Filter -->
-            <div class="category-filter">
-                <button class="filter-btn active" data-category="all">Tất cả</button>
-                <button class="filter-btn" data-category="gaydar">Gaydar</button>
-                <button class="filter-btn" data-category="asian">Asian</button>
-                <button class="filter-btn" data-category="japan">Japan</button>
-            </div>
+            
 
             <!-- Loading Skeleton -->
             <div id="loadingSkeleton" class="video-grid">

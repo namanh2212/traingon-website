@@ -77,7 +77,9 @@ body {
     color: #eaeaea;
 }
 
-.nav-link.active::after {
+/* underline CHỈ cho desktop header, KHÔNG áp dụng cho mobile drawer */
+@media (min-width: 769px){
+  .header .nav .nav-link.active::after{
     content: '';
     position: absolute;
     bottom: -8px;
@@ -86,7 +88,15 @@ body {
     height: 2px;
     background: linear-gradient(90deg, #ff6b6b, #ff5252);
     border-radius: 1px;
+  }
 }
+
+/* ép tắt underline ở menu mobile */
+.mobile-nav .nav-link::after{
+  content: none !important;
+  display: none !important;
+}
+
 
 .search-container {
     display: flex;
@@ -497,6 +507,58 @@ body {
         margin: 0.5rem 0;
     }
 }
+
+/* Hamburger button */
+.menu-toggle{
+  display: none;
+  background: none; border: 0; color: #eaeaea; cursor: pointer;
+  padding: .35rem; border-radius: 10px;
+}
+.menu-toggle:hover{ background: rgba(255,255,255,.08); }
+
+/* Drawer menu cho mobile */
+.mobile-nav{
+  display: none;              /* desktop tắt */
+  position: fixed; left: 0; right: 0; top: 70px;  /* ngay dưới header */
+  background: #141421; border-bottom: 1px solid rgba(255,255,255,.12);
+  transform: translateY(-110%); opacity: 0; pointer-events: none;
+  transition: transform .28s ease, opacity .28s ease;
+  z-index: 1000;
+}
+.mobile-nav.open{ transform: translateY(0); opacity: 1; pointer-events: auto; }
+.mobile-nav .nav-link{
+  display: block; padding: .9rem 1.1rem; text-decoration: none;
+  color:#eaeaea; border-top: 1px solid rgba(255,255,255,.06);
+}
+.mobile-nav .nav-link.active{ background: rgba(255,255,255,.06); }
+
+/* Backdrop */
+.nav-backdrop{
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35);
+  opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 999;
+}
+.nav-backdrop.open{ display:block; opacity: 1; pointer-events: auto; }
+
+/* Hiển thị hamburger & drawer ở mobile, ẩn .nav desktop */
+@media (max-width: 768px){
+  .menu-toggle{ display:inline-flex; align-items:center; justify-content:center; }
+  .nav{ display: none; } /* chính rule này đang làm bạn mất menu trên mobile */
+  .mobile-nav{ display: block; }
+}
+
+/* === Move hamburger to the far right, after the search === */
+.header-content > .logo { order: 0; }
+.header-content > .nav { order: 1; }
+.header-content > .search-container { order: 2; margin-left: auto; } /* đẩy nhóm bên phải */
+.header-content > .mobile-search-toggle { order: 3; }
+.header-content > #menuToggle { order: 4; } /* hamburger đứng ngay sau nút tìm kiếm */
+
+/* Mobile: ẩn .search-container rồi, đẩy nút search sang phải và hamburger ngay sau nó */
+@media (max-width: 768px){
+  .mobile-search-toggle { margin-left: auto; }
+  #menuToggle { margin-left: .4rem; } /* tạo khe nhỏ giữa search và menu */
+}
+
 
 /* No Results */
 .no-results {

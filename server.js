@@ -487,9 +487,7 @@ app.patch('/api/admin/videos/:id/toggle', requireAuth, async (req, res) => {
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
-app.get('/video.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'video.html'));
-});
+
 
 // Admin routes
 app.get('/admin', (req, res) => res.redirect('/admin/login.html'));
@@ -545,6 +543,12 @@ app.get('/watch/:id/:slug?', async (req, res) => {
     let html = await fs.readFile(path.join(__dirname, 'public', 'video.html'), 'utf8');
     html = html.replace(/<meta[^>]*name=['"]robots['"][^>]*>\s*/i, ''); // bỏ noindex nếu còn
     html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(v.title)} — Traingon</title>`);
+    
+    const isoUpload  = new Date(v.updatedAt || v.createdAt || Date.now()).toISOString(); // có múi giờ
+const embedUrl   = canonical;                          // xem ngay trên /watch
+const contentUrl = v.downloadLink || "";               // nếu có link tải thì điền, không có thì để ""
+
+    
     const headInject = `
 <link rel="canonical" href="${canonical}">
 <meta property="og:type" content="video.other">
@@ -558,14 +562,21 @@ app.get('/watch/:id/:slug?', async (req, res) => {
 <meta name="twitter:description" content="${escapeHtml(v.description || v.title || 'Watch now')}">
 <meta name="twitter:image" content="${thumb}">
 <script type="application/ld+json">${JSON.stringify({
-  "@context":"https://schema.org",
-  "@type":"VideoObject",
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
   "name": v.title,
-  "url": canonical,
-  "thumbnailUrl": thumb,
-  "uploadDate": uploadDate
+  "description": v.description || v.title || "Watch video",
+  "thumbnailUrl": v.thumbnail ? [v.thumbnail] : undefined,
+  "uploadDate": isoUpload,      // ISO 8601 có timezone
+  "embedUrl": embedUrl,         // >= 1 trong 2 trường
+  ...(contentUrl ? { "contentUrl": contentUrl } : {}),
+  "url": canonical
 })}</script>`;
     html = html.replace('</head>', headInject + '\n</head>');
+
+    // Chèn H1 ẩn ngay đầu <body> (dùng regex để dù <body> có class/attr vẫn chèn được)
+html = html.replace(/<body([^>]*)>/i, `<body$1><h1 style="position:absolute;left:-9999px;clip:rect(1px,1px,1px,1px);width:1px;height:1px;overflow:hidden;">${escapeHtml(v.title)}</h1>`);
+
 
     res.set('Cache-Control','public, max-age=3600');
     res.status(200).send(html);

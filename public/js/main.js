@@ -446,7 +446,7 @@ function initFloatingChat() {
   // Khôi phục trạng thái mở (nếu có)
   if (localStorage.getItem('chatOpen') === '1') open();
 
-  // ---- TEASER: luôn hiện trên TRANG CHỦ sau ~5s, rung ~5s rồi tự tắt ----
+  // ---- TEASER: luôn hiện trên TRANG CHỦ sau ~3s, rung ~5s rồi tự tắt ----
   if (location.pathname === '/') {
     setTimeout(() => {
       if (!btn) return;
@@ -475,7 +475,7 @@ function initFloatingChat() {
         open();
       }, { once: true });
 
-    }, 5000); // delay 5s
+    }, 3000); // delay 5s
   }
 }
 

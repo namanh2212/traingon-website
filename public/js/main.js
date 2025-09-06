@@ -432,13 +432,54 @@ function initFloatingChat() {
     localStorage.removeItem('chatOpen');
   };
 
-  btn.addEventListener('click', () => panel.classList.contains('open') ? hide() : open());
+  // Toggle panel; nếu có teaser đang hiện thì bỏ đi
+  btn.addEventListener('click', () => {
+    const t = document.getElementById('chatTeaser');
+    if (t) t.remove();
+    panel.classList.contains('open') ? hide() : open();
+  });
+
   closeBtn?.addEventListener('click', hide);
   backdrop?.addEventListener('click', hide);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
 
+  // Khôi phục trạng thái mở (nếu có)
   if (localStorage.getItem('chatOpen') === '1') open();
+
+  // ---- TEASER: luôn hiện trên TRANG CHỦ sau ~5s, rung ~5s rồi tự tắt ----
+  if (location.pathname === '/') {
+    setTimeout(() => {
+      if (!btn) return;
+
+      let teaser = document.getElementById('chatTeaser');
+      if (!teaser) {
+        teaser = document.createElement('div');
+        teaser.id = 'chatTeaser';
+        teaser.className = 'chat-teaser';
+        teaser.innerHTML = '<strong>Chat with me</strong><br><span>Request video</span>';
+        btn.appendChild(teaser);
+      }
+
+      // show + shake
+      teaser.classList.add('show', 'shake');
+
+      // tắt sau 5s (không lưu localStorage => lần sau vào trang chủ lại hiện tiếp)
+      setTimeout(() => {
+        teaser.classList.remove('show', 'shake');
+        teaser.remove();
+      }, 5000);
+
+      // Click vào bong bóng -> mở chat ngay
+      teaser.addEventListener('click', () => {
+        teaser.remove();
+        open();
+      }, { once: true });
+
+    }, 5000); // delay 5s
+  }
 }
+
+
 
 // =======================
 // Init

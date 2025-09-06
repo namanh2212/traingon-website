@@ -1101,3 +1101,67 @@ body {
   .chat-fab { right: 12px; bottom: 12px; padding: 8px 10px; }
   .chat-panel { right: 8px; left: 8px; width: auto; height: 65vh; bottom: 64px; }
 }
+
+/* === Chat teaser bubble (one-time) === */
+#chatToggle { position: relative; } /* neo bubble theo nút chat */
+
+.chat-teaser{
+  position: absolute;
+  bottom: 120%;           /* nằm phía trên nút chat */
+  right: 0;
+  background: #1b1b2a;
+  color: #fff;
+  padding: .6rem .8rem;
+  border-radius: 12px;
+  font-size: .9rem;
+  line-height: 1.2;
+  box-shadow: 0 10px 25px rgba(0,0,0,.35);
+  opacity: 0;
+  transform: translateY(6px) scale(.98);
+  pointer-events: auto;
+  transition: opacity .25s ease, transform .25s ease;
+  z-index: 1000;
+  max-width: 220px;
+  white-space: nowrap;
+}
+.chat-teaser strong{ font-weight: 700; }
+.chat-teaser::after{
+  content:'';
+  position: absolute;
+  top: 100%;
+  right: 14px;
+  border: 8px solid transparent;
+  border-top-color: #1b1b2a;
+}
+
+.chat-teaser.show{
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@keyframes chatTeaserShake {
+  0%,100% { transform: translateY(0); }
+  20% { transform: translateY(-2px); }
+  40% { transform: translateY(2px); }
+  60% { transform: translateY(-2px); }
+  80% { transform: translateY(1px); }
+}
+.chat-teaser.shake{
+  animation: chatTeaserShake 0.9s ease-in-out infinite;
+}
+
+/* Mobile: chừa chút khoảng cách nếu sát mép */
+@media (max-width: 768px){
+  .chat-teaser{ right: -4px; }
+}
+/* === Chat FAB: always on top & fixed at viewport bottom-right === */
+#chatToggle.chat-fab{
+  position: fixed !important;
+  right: 16px;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px)); /* iOS safe area */
+  z-index: 10050; /* cao hơn mọi overlay khác */
+}
+
+/* Sắp xếp chồng lớp đồng bộ */
+.chat-backdrop{ z-index: 10040; }
+.chat-panel{ z-index: 10060; }    /* panel trên FAB & backdrop */

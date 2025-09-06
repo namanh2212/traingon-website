@@ -5,14 +5,17 @@
   const isVideo = p.startsWith('/watch'); // sửa nếu route khác
 
   // ====== DÁN 1 SNIPPET cho TRANG CHỦ (index) vào đây ======
-/*  const HOME_SNIPPETS = [
+  const HOME_SNIPPETS = [
+    /*`<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script> 
+ <ins class="eas6a97888e20" data-zoneid="5716740"></ins> 
+ <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>`
     `<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script> 
  <ins class="eas6a97888e10" data-zoneid="5700524"></ins> 
  <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>`,
    `<script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script> 
  <ins class="eas6a97888e10" data-zoneid="5700524"></ins> 
- <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>`
-  ];*/
+ <script>(AdProvider = window.AdProvider || []).push({"serve": {}});</script>`*/
+  ];
 
   // ====== DÁN 2 SNIPPET cho TRANG VIDEO vào đây ======
   const VIDEO_SNIPPETS = [

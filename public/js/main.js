@@ -8,6 +8,46 @@ let isLoading = false;
 let searchTimeout;
 
 // =======================
+// Sync State <-> URL (page, category, search)
+// =======================
+function getStateFromURL() {
+  const p = new URLSearchParams(location.search);
+  const search = (p.get('search') || '').trim();
+  let category = (p.get('category') || 'all').toLowerCase();
+  if (!['all','gaydar','asian','japan'].includes(category)) category = 'all';
+  const page = Math.max(1, parseInt(p.get('page') || '1', 10) || 1);
+  return { search, category, page };
+}
+
+function applyState({ search, category, page }) {
+  currentSearch = search;
+  currentCategory = category;
+  currentPage = page;
+
+  // đồng bộ ô tìm kiếm (nếu có)
+  const si = document.getElementById('searchInput');
+  const mi = document.getElementById('mobileSearchInput');
+  if (si) si.value = search;
+  if (mi) mi.value = search;
+
+  markActiveNav();
+}
+
+function updateURL(push = false) {
+  const q = new URLSearchParams(location.search);
+
+  if (currentCategory && currentCategory !== 'all') q.set('category', currentCategory); else q.delete('category');
+  if (currentSearch) q.set('search', currentSearch); else q.delete('search');
+  if (currentPage && currentPage > 1) q.set('page', String(currentPage)); else q.delete('page');
+
+  const qs = q.toString();
+  const url = qs ? `/?${qs}` : '/';
+  const state = { page: currentPage, category: currentCategory, search: currentSearch };
+  if (push) history.pushState(state, '', url);
+  else history.replaceState(state, '', url);
+}
+
+// =======================
 // Search (desktop + mobile)
 // =======================
 function performSearch(query) {
@@ -25,6 +65,8 @@ function performSearch(query) {
       if (searchInput) searchInput.classList.add('searching');
       if (mobileSearchInput) mobileSearchInput.classList.add('searching');
     }
+
+    updateURL(true); // ghi ?search=&page= vào URL
     loadVideos();
   }, 300);
 }
@@ -94,6 +136,7 @@ function initCategoryFilter() {
       btn.classList.add('active');
       currentCategory = btn.dataset.category;
       currentPage = 1;
+      updateURL(true);
       loadVideos();
     });
   });
@@ -121,14 +164,8 @@ function generateSkeleton(count = 20) {
 }
 
 // =======================
-/* Read category from URL & mark active */
+// Mark active in nav (desktop + mobile)
 // =======================
-function initCategoryFromURL() {
-  const p = new URLSearchParams(location.search);
-  const c = (p.get('category') || 'all').toLowerCase();
-  if (['all', 'gaydar', 'asian', 'japan'].includes(c)) currentCategory = c;
-}
-
 function markActiveNav() {
   const allLinks = document.querySelectorAll('.nav .nav-link, .mobile-nav .nav-link');
   allLinks.forEach(a => {
@@ -277,6 +314,7 @@ function clearSearch() {
   if (searchInput) { searchInput.value = ''; searchInput.classList.remove('searching'); }
   if (mobileSearchInput) { mobileSearchInput.value = ''; mobileSearchInput.classList.remove('searching'); }
 
+  updateURL(true);
   loadVideos();
 }
 
@@ -364,6 +402,7 @@ function renderPagination(pagination) {
 
 function goToPage(page) {
   currentPage = page;
+  updateURL(true); // pushState để Back quay về trang trước
   loadVideos();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -407,7 +446,11 @@ function initFloatingChat() {
 document.addEventListener('DOMContentLoaded', () => {
   initSearch();
   initMobileNav();
-  initCategoryFromURL();
+
+  // lấy state từ URL & chuẩn hoá URL ban đầu
+  applyState(getStateFromURL());
+  updateURL(false);
+
   markActiveNav();
 
   generateSkeleton();
@@ -433,6 +476,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (w <= 1199) return 'md';
     return 'lg';
   }
+
+  // Back/Forward: khôi phục state từ history/URL rồi load
+  window.addEventListener('popstate', (e) => {
+    const st = e.state || getStateFromURL();
+    applyState(st);
+    loadVideos();
+  });
 
   // Floating chat (trang chủ)
   try { initFloatingChat(); } catch (e) { console.error(e); }

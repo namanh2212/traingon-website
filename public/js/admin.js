@@ -891,7 +891,7 @@ function formatDate(dateString) {
   return date.toLocaleDateString('vi-VN');
 }
 function getCategoryDisplay(category) {
-  const categories = { 'none': 'None', 'gaydar': 'Gaydar', 'asian': 'Asian', 'japan': 'Japan' };
+  const categories = { 'none': 'None', 'gaydar': 'Gaydar', 'asian': 'Asian', 'japan': 'Japan', 'straight': 'Straight' };
   return categories[category] || 'None';
 }
 function formatFileSize(bytes) {

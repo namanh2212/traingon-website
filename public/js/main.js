@@ -14,7 +14,7 @@ function getStateFromURL() {
   const p = new URLSearchParams(location.search);
   const search = (p.get('search') || '').trim();
   let category = (p.get('category') || 'all').toLowerCase();
-  if (!['all','gaydar','asian','japan'].includes(category)) category = 'all';
+  if (!['all','gaydar','asian','japan','straight'].includes(category)) category = 'all';
   const page = Math.max(1, parseInt(p.get('page') || '1', 10) || 1);
   return { search, category, page };
 }

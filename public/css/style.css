@@ -1608,3 +1608,14 @@ body {
 .exo-gate:focus {
   outline: none;
 }
+
+/* === Video page: gọn & nhỏ hơn === */
+#videoDetails { padding: 1rem; margin-bottom: 1rem; }
+#videoDetails .video-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.5rem; }
+#videoDetails .video-meta { font-size: 0.85rem; gap: 0.5rem; margin-bottom: 0.5rem; }
+#videoDetails .video-tags { gap: 0.4rem; margin-bottom: 0.75rem; }
+#videoDetails .tag { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+#videoDetails .video-description { line-height: 1.5; margin-bottom: 1rem; }
+
+/* Giảm khoảng cách xuống phần "Related videos" */
+.related-videos { margin-top: 1.25rem; }

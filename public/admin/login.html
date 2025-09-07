@@ -1,62 +1,88 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Login - Traingon.top</title>
-    <link rel="stylesheet" href="/css/admin.css">
-    <meta name="robots" content="noindex, nofollow">
-</head>
-<body class="login-page">
+    <link rel="stylesheet" href="/css/admin.css" />
+    <meta name="robots" content="noindex, nofollow" />
+  </head>
+  <body class="login-page">
     <div class="login-container">
-        <div class="login-card">
-            <div class="login-header">
-                <div class="logo">
-                    <span class="logo-badge">T</span>
-                    <span class="logo-text">Admin Panel</span>
-                </div>
-                <p>Đăng nhập để quản lý hệ thống</p>
-            </div>
-            
-            <form id="loginForm" class="login-form">
-                <div class="form-group">
-                    <label for="username">Tài khoản</label>
-                    <input type="text" id="username" name="username" required autocomplete="username" value="admin">
-                </div>
-                
-                <div class="form-group">
-                    <label for="password">Mật khẩu</label>
-                    <input type="password" id="password" name="password" required autocomplete="current-password">
-                </div>
-                
-                <button type="submit" class="btn-primary">Đăng nhập</button>
-            </form>
-            
-            <!-- Token Form (hidden initially) -->
-            <form id="tokenForm" class="token-form" style="display: none;">
-                <div class="form-group">
-                    <label for="token">Admin Token</label>
-                    <input type="password" id="token" name="token" required>
-                </div>
-                
-                <button type="submit" class="btn-primary">Xác thực</button>
-            </form>
-            
-            <div id="errorMessage" class="error-message" style="display: none;"></div>
-            
-            <!-- Debug info -->
-            <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 0.8rem; color: #a7a7b3;">
-                <div>Debug: Path = <span id="debugPath"></span></div>
-                <div>Token = <span id="debugToken"></span></div>
-            </div>
+      <div class="login-card">
+        <div class="login-header">
+          <div class="logo">
+            <span class="logo-badge">T</span>
+            <span class="logo-text">Admin Panel</span>
+          </div>
+          <p>Đăng nhập để quản lý hệ thống</p>
         </div>
+
+        <form id="loginForm" class="login-form">
+          <div class="form-group">
+            <label for="username">Tài khoản</label>
+            <input
+              type="text"
+              id="username"
+              name="username"
+              required
+              autocomplete="username"
+              value="admin"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="password">Mật khẩu</label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              autocomplete="current-password"
+            />
+          </div>
+
+          <button type="submit" class="btn-primary">Đăng nhập</button>
+        </form>
+
+        <!-- Token Form (hidden initially) -->
+        <form id="tokenForm" class="token-form" style="display: none">
+          <div class="form-group">
+            <label for="token">Admin Token</label>
+            <input type="password" id="token" name="token" required />
+          </div>
+
+          <button type="submit" class="btn-primary">Xác thực</button>
+        </form>
+
+        <div
+          id="errorMessage"
+          class="error-message"
+          style="display: none"
+        ></div>
+
+        <!-- Debug info -->
+        <div
+          style="
+            margin-top: 1rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #a7a7b3;
+          "
+        >
+          <div>Debug: Path = <span id="debugPath"></span></div>
+          <div>Token = <span id="debugToken"></span></div>
+        </div>
+      </div>
     </div>
-    
+
     <script src="/js/auth.js?v=3"></script>
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    initLogin();
-  });
-</script>
-</body>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        initLogin();
+      });
+    </script>
+  </body>
 </html>

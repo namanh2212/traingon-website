@@ -2,49 +2,83 @@
 // Global state
 // =======================
 let currentPage = 1;
-let currentCategory = 'all';
-let currentSearch = '';
+let currentCategory = "all";
+let currentSearch = "";
 let isLoading = false;
 let searchTimeout;
 
+// Filters state
+let currentViewSort = "none"; // 'none' | 'highest' | 'lowest'
+let currentTimeFilter = "newest"; // 'newest' | '7d' | 'oldest'
+
 // =======================
-// Sync State <-> URL (page, category, search)
+// Sync State <-> URL (page, category, search, view, time)
 // =======================
 function getStateFromURL() {
   const p = new URLSearchParams(location.search);
-  const search = (p.get('search') || '').trim();
-  let category = (p.get('category') || 'all').toLowerCase();
-  if (!['all','gaydar','asian','japan','straight'].includes(category)) category = 'all';
-  const page = Math.max(1, parseInt(p.get('page') || '1', 10) || 1);
-  return { search, category, page };
+  const search = (p.get("search") || "").trim();
+
+  let category = (p.get("category") || "all").toLowerCase();
+  if (!["all", "gaydar", "asian", "japan", "straight"].includes(category))
+    category = "all";
+
+  let view = (p.get("view") || "none").toLowerCase();
+  if (!["none", "highest", "lowest"].includes(view)) view = "none";
+
+  let time = (p.get("time") || "newest").toLowerCase();
+  if (!["newest", "7d", "oldest"].includes(time)) time = "newest";
+
+  // rule: if view != none then time cannot be 'oldest'
+  if (view !== "none" && time === "oldest") time = "newest";
+
+  const page = Math.max(1, parseInt(p.get("page") || "1", 10) || 1);
+  return { search, category, page, view, time };
 }
 
-function applyState({ search, category, page }) {
+function applyState({ search, category, page, view, time }) {
   currentSearch = search;
   currentCategory = category;
   currentPage = page;
+  currentViewSort = view || "none";
+  currentTimeFilter = time || "newest";
 
-  // đồng bộ ô tìm kiếm (nếu có)
-  const si = document.getElementById('searchInput');
-  const mi = document.getElementById('mobileSearchInput');
+  // sync inputs
+  const si = document.getElementById("searchInput");
+  const mi = document.getElementById("mobileSearchInput");
   if (si) si.value = search;
   if (mi) mi.value = search;
 
+  updateFilterUI();
   markActiveNav();
 }
 
 function updateURL(push = false) {
   const q = new URLSearchParams(location.search);
 
-  if (currentCategory && currentCategory !== 'all') q.set('category', currentCategory); else q.delete('category');
-  if (currentSearch) q.set('search', currentSearch); else q.delete('search');
-  if (currentPage && currentPage > 1) q.set('page', String(currentPage)); else q.delete('page');
+  if (currentCategory && currentCategory !== "all")
+    q.set("category", currentCategory);
+  else q.delete("category");
+  if (currentSearch) q.set("search", currentSearch);
+  else q.delete("search");
+  if (currentPage && currentPage > 1) q.set("page", String(currentPage));
+  else q.delete("page");
+
+  if (currentViewSort !== "none") q.set("view", currentViewSort);
+  else q.delete("view");
+  if (currentTimeFilter !== "newest") q.set("time", currentTimeFilter);
+  else q.delete("time");
 
   const qs = q.toString();
-  const url = qs ? `/?${qs}` : '/';
-  const state = { page: currentPage, category: currentCategory, search: currentSearch };
-  if (push) history.pushState(state, '', url);
-  else history.replaceState(state, '', url);
+  const url = qs ? `/?${qs}` : "/";
+  const state = {
+    page: currentPage,
+    category: currentCategory,
+    search: currentSearch,
+    view: currentViewSort,
+    time: currentTimeFilter,
+  };
+  if (push) history.pushState(state, "", url);
+  else history.replaceState(state, "", url);
 }
 
 // =======================
@@ -59,81 +93,83 @@ function performSearch(query) {
     currentSearch = query.trim();
     currentPage = 1;
 
-    const searchInput = document.getElementById('searchInput');
-    const mobileSearchInput = document.getElementById('mobileSearchInput');
+    const searchInput = document.getElementById("searchInput");
+    const mobileSearchInput = document.getElementById("mobileSearchInput");
     if (currentSearch) {
-      if (searchInput) searchInput.classList.add('searching');
-      if (mobileSearchInput) mobileSearchInput.classList.add('searching');
+      if (searchInput) searchInput.classList.add("searching");
+      if (mobileSearchInput) mobileSearchInput.classList.add("searching");
     }
 
-    updateURL(true); // ghi ?search=&page= vào URL
+    updateURL(true);
     loadVideos();
   }, 300);
 }
 
 function initSearch() {
-  const searchInput = document.getElementById('searchInput');
-  const mobileSearchInput = document.getElementById('mobileSearchInput');
-  const mobileSearchToggle = document.querySelector('.mobile-search-toggle');
-  const mobileSearch = document.querySelector('.mobile-search');
-  const mobileSearchClose = document.querySelector('.mobile-search-close');
+  const searchInput = document.getElementById("searchInput");
+  const mobileSearchInput = document.getElementById("mobileSearchInput");
+  const mobileSearchToggle = document.querySelector(".mobile-search-toggle");
+  const mobileSearch = document.querySelector(".mobile-search");
+  const mobileSearchClose = document.querySelector(".mobile-search-close");
 
   // Desktop
   if (searchInput) {
-    searchInput.addEventListener('input', (e) => performSearch(e.target.value));
-    searchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    searchInput.addEventListener("input", (e) => performSearch(e.target.value));
+    searchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
         clearTimeout(searchTimeout);
         performSearch(e.target.value);
       }
     });
-    searchInput.addEventListener('blur', () => {
-      setTimeout(() => searchInput.classList.remove('searching'), 1000);
+    searchInput.addEventListener("blur", () => {
+      setTimeout(() => searchInput.classList.remove("searching"), 1000);
     });
   }
 
   // Mobile toggle
   if (mobileSearchToggle) {
-    mobileSearchToggle.addEventListener('click', () => {
+    mobileSearchToggle.addEventListener("click", () => {
       if (!mobileSearch) return;
-      mobileSearch.classList.add('active');
+      mobileSearch.classList.add("active");
       mobileSearchInput?.focus();
     });
   }
   if (mobileSearchClose) {
-    mobileSearchClose.addEventListener('click', () => {
+    mobileSearchClose.addEventListener("click", () => {
       if (!mobileSearch) return;
-      mobileSearch.classList.remove('active');
+      mobileSearch.classList.remove("active");
       if (mobileSearchInput) {
-        mobileSearchInput.value = '';
-        performSearch('');
+        mobileSearchInput.value = "";
+        performSearch("");
       }
     });
   }
 
   // Mobile input
   if (mobileSearchInput) {
-    mobileSearchInput.addEventListener('input', (e) => performSearch(e.target.value));
-    mobileSearchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    mobileSearchInput.addEventListener("input", (e) =>
+      performSearch(e.target.value),
+    );
+    mobileSearchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
         clearTimeout(searchTimeout);
         performSearch(e.target.value);
-        mobileSearch?.classList.remove('active');
+        mobileSearch?.classList.remove("active");
       }
     });
-    mobileSearchInput.addEventListener('blur', () => {
-      setTimeout(() => mobileSearchInput.classList.remove('searching'), 1000);
+    mobileSearchInput.addEventListener("blur", () => {
+      setTimeout(() => mobileSearchInput.classList.remove("searching"), 1000);
     });
   }
 }
 
-// Optional: legacy filter buttons (không dùng nữa, để tránh lỗi cũ)
+// Optional: legacy filter buttons (not used now)
 function initCategoryFilter() {
-  const filterBtns = document.querySelectorAll('.filter-btn');
-  filterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      filterBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+  const filterBtns = document.querySelectorAll(".filter-btn");
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
       currentCategory = btn.dataset.category;
       currentPage = 1;
       updateURL(true);
@@ -143,15 +179,113 @@ function initCategoryFilter() {
 }
 
 // =======================
+// Filters UI
+// =======================
+function updateFilterUI() {
+  // active state
+  document.querySelectorAll("#viewSortMenu li").forEach((li) => {
+    li.classList.toggle("active", li.dataset.view === currentViewSort);
+  });
+  document.querySelectorAll("#timeFilterMenu li").forEach((li) => {
+    li.classList.toggle("active", li.dataset.time === currentTimeFilter);
+  });
+
+  // disable 'Oldest' when views != none
+  const oldest = document.querySelector(
+    '#timeFilterMenu li[data-time="oldest"]',
+  );
+  if (oldest) {
+    if (currentViewSort !== "none") oldest.classList.add("disabled");
+    else oldest.classList.remove("disabled");
+  }
+
+  // cập nhật nhãn nút theo lựa chọn
+  const vLabel = document.querySelector("#viewSortBtn .label");
+  const tLabel = document.querySelector("#timeFilterBtn .label");
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  if (vLabel) {
+    vLabel.textContent =
+      currentViewSort === "none" ? "Views" : `Views: ${cap(currentViewSort)}`;
+  }
+  if (tLabel) {
+    let t = currentTimeFilter;
+    if (t === "7d") t = "Last 7 days";
+    else t = cap(t); // Newest / Oldest
+    tLabel.textContent = `Time: ${t}`;
+  }
+}
+
+function initFiltersUI() {
+  const vWrap = document.getElementById("filterViews");
+  const tWrap = document.getElementById("filterTime");
+  const vBtn = document.getElementById("viewSortBtn");
+  const tBtn = document.getElementById("timeFilterBtn");
+
+  if (!vWrap || !tWrap) return;
+
+  // open/close inline panels
+  const closeAll = () => {
+    vWrap.classList.remove("open");
+    tWrap.classList.remove("open");
+  };
+  vBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    vWrap.classList.toggle("open");
+    tWrap.classList.remove("open");
+  });
+  tBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    tWrap.classList.toggle("open");
+    vWrap.classList.remove("open");
+  });
+  document.addEventListener("click", closeAll);
+
+  // select view
+  document.querySelectorAll("#viewSortMenu li").forEach((li) => {
+    li.addEventListener("click", () => {
+      const val = li.dataset.view;
+      if (!val) return;
+      currentViewSort = val;
+      if (currentViewSort !== "none" && currentTimeFilter === "oldest") {
+        currentTimeFilter = "newest";
+      }
+      currentPage = 1;
+      updateFilterUI();
+      updateURL(true);
+      loadVideos();
+      closeAll();
+    });
+  });
+
+  // select time
+  document.querySelectorAll("#timeFilterMenu li").forEach((li) => {
+    li.addEventListener("click", () => {
+      const val = li.dataset.time;
+      if (!val) return;
+      if (val === "oldest" && currentViewSort !== "none") return; // guard xung đột
+      currentTimeFilter = val;
+      currentPage = 1;
+      updateFilterUI();
+      updateURL(true);
+      loadVideos();
+      closeAll();
+    });
+  });
+
+  updateFilterUI();
+}
+
+// =======================
 // Skeleton
 // =======================
 function generateSkeleton(count = 20) {
-  const skeleton = document.getElementById('loadingSkeleton');
+  const skeleton = document.getElementById("loadingSkeleton");
   if (!skeleton) return;
-  skeleton.innerHTML = '';
+  skeleton.innerHTML = "";
   for (let i = 0; i < count; i++) {
-    const el = document.createElement('a');
-    el.className = 'skeleton-card';
+    const el = document.createElement("a");
+    el.className = "skeleton-card";
     el.innerHTML = `
       <div class="skeleton-thumbnail skeleton"></div>
       <div class="skeleton-info">
@@ -167,11 +301,15 @@ function generateSkeleton(count = 20) {
 // Mark active in nav (desktop + mobile)
 // =======================
 function markActiveNav() {
-  const allLinks = document.querySelectorAll('.nav .nav-link, .mobile-nav .nav-link');
-  allLinks.forEach(a => {
-    const u = new URL(a.getAttribute('href'), location.origin);
-    const c = (new URLSearchParams(u.search).get('category') || 'all').toLowerCase();
-    a.classList.toggle('active', c === currentCategory);
+  const allLinks = document.querySelectorAll(
+    ".nav .nav-link, .mobile-nav .nav-link",
+  );
+  allLinks.forEach((a) => {
+    const u = new URL(a.getAttribute("href"), location.origin);
+    const c = (
+      new URLSearchParams(u.search).get("category") || "all"
+    ).toLowerCase();
+    a.classList.toggle("active", c === currentCategory);
   });
 }
 
@@ -179,38 +317,40 @@ function markActiveNav() {
 // Mobile hamburger + drawer
 // =======================
 function initMobileNav() {
-  const btn = document.getElementById('menuToggle');
-  const drawer = document.getElementById('mobileNav');
-  const backdrop = document.getElementById('navBackdrop');
+  const btn = document.getElementById("menuToggle");
+  const drawer = document.getElementById("mobileNav");
+  const backdrop = document.getElementById("navBackdrop");
 
-  if (!btn || !drawer) return; // nếu chưa thêm HTML mobile-nav thì bỏ qua
+  if (!btn || !drawer) return;
 
   const open = () => {
-    drawer.classList.add('open');
-    backdrop?.classList.add('open');
-    btn.setAttribute('aria-expanded', 'true');
-    drawer.setAttribute('aria-hidden', 'false');
+    drawer.classList.add("open");
+    backdrop?.classList.add("open");
+    btn.setAttribute("aria-expanded", "true");
+    drawer.setAttribute("aria-hidden", "false");
   };
   const close = () => {
-    drawer.classList.remove('open');
-    backdrop?.classList.remove('open');
-    btn.setAttribute('aria-expanded', 'false');
-    drawer.setAttribute('aria-hidden', 'true');
+    drawer.classList.remove("open");
+    backdrop?.classList.remove("open");
+    btn.setAttribute("aria-expanded", "false");
+    drawer.setAttribute("aria-hidden", "true");
   };
-  const toggle = () => (drawer.classList.contains('open') ? close() : open());
+  const toggle = () => (drawer.classList.contains("open") ? close() : open());
 
-  btn.addEventListener('click', toggle);
-  backdrop?.addEventListener('click', close);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  btn.addEventListener("click", toggle);
+  backdrop?.addEventListener("click", close);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") close();
+  });
 
-  // Đóng khi chọn danh mục trong drawer
-  drawer.addEventListener('click', (e) => {
-    const a = e.target.closest('a.nav-link');
+  // Close when choose a link
+  drawer.addEventListener("click", (e) => {
+    const a = e.target.closest("a.nav-link");
     if (a) close();
   });
 
-  // Khi phóng to >768px thì tự đóng
-  window.addEventListener('resize', () => {
+  // Auto close when >768px
+  window.addEventListener("resize", () => {
     if (window.innerWidth > 768) close();
   });
 }
@@ -222,73 +362,118 @@ async function loadVideos() {
   if (isLoading) return;
   isLoading = true;
 
-  const videoGrid = document.getElementById('videoGrid');
-  const loadingSkeleton = document.getElementById('loadingSkeleton');
-  const pagination = document.getElementById('pagination');
+  const videoGrid = document.getElementById("videoGrid");
+  const loadingSkeleton = document.getElementById("loadingSkeleton");
+  const paginationEl = document.getElementById("pagination");
 
-  if (videoGrid) videoGrid.style.visibility = 'hidden';
-  if (loadingSkeleton) loadingSkeleton.style.display = 'grid';
-  if (pagination) pagination.innerHTML = '';
+  if (videoGrid) videoGrid.style.visibility = "hidden";
+  if (loadingSkeleton) loadingSkeleton.style.display = "grid";
+  if (paginationEl) paginationEl.innerHTML = "";
 
   try {
+    const limit = getItemsPerPage();
     const params = new URLSearchParams({
       page: currentPage,
-      limit: getItemsPerPage(),
-      category: currentCategory === 'all' ? '' : currentCategory,
-      search: currentSearch
+      limit: limit,
+      category: currentCategory === "all" ? "" : currentCategory,
+      search: currentSearch,
     });
-
-    // Mobile: ép limit 20 để lưới đẹp
-    if (window.matchMedia('(max-width: 768px)').matches) params.set('limit', '20');
+    if (window.matchMedia("(max-width: 768px)").matches)
+      params.set("limit", "20");
 
     const res = await fetch(`/api/videos?${params}`);
     const data = await res.json();
 
-    if (loadingSkeleton) loadingSkeleton.style.display = 'none';
-    if (videoGrid) videoGrid.style.visibility = 'visible';
+    if (loadingSkeleton) loadingSkeleton.style.display = "none";
+    if (videoGrid) videoGrid.style.visibility = "visible";
 
-    const searchInput = document.getElementById('searchInput');
-    const mobileSearchInput = document.getElementById('mobileSearchInput');
-    if (searchInput) searchInput.classList.remove('searching');
-    if (mobileSearchInput) mobileSearchInput.classList.remove('searching');
+    // Sort helpers
+    const byCreatedAtDesc = (a, b) =>
+      new Date(b.createdAt) - new Date(a.createdAt);
+    const byCreatedAtAsc = (a, b) =>
+      new Date(a.createdAt) - new Date(b.createdAt);
+    const byViewsDesc = (a, b) => (b.views || 0) - (a.views || 0);
+    const byViewsAsc = (a, b) => (a.views || 0) - (b.views || 0);
 
-    if (!data.videos || data.videos.length === 0) {
+    let list = Array.isArray(data.videos) ? [...data.videos] : [];
+
+    // --- Client filters ---
+    const useClientPagination = currentTimeFilter === "7d" || !!currentSearch;
+
+    // Time: 7 days
+    if (currentTimeFilter === "7d") {
+      const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      list = list.filter((v) => new Date(v.createdAt).getTime() >= since);
+    }
+
+    // Views sort
+    if (currentViewSort === "none") {
+      if (currentTimeFilter === "oldest") list.sort(byCreatedAtAsc);
+      else list.sort(byCreatedAtDesc);
+    } else if (currentViewSort === "highest") {
+      list.sort(byViewsDesc);
+    } else if (currentViewSort === "lowest") {
+      list.sort(byViewsAsc);
+    }
+
+    // --- Decide pagination source ---
+    let pageList = list;
+    let pagination = data.pagination;
+
+    if (useClientPagination) {
+      const effLimit = parseInt(params.get("limit") || String(limit), 10);
+      const pagesLocal = Math.max(1, Math.ceil(list.length / effLimit));
+      if (currentPage > pagesLocal) currentPage = pagesLocal; // tránh page 2 rỗng
+      const start = (currentPage - 1) * effLimit;
+      pageList = list.slice(start, start + effLimit);
+      pagination = { page: currentPage, pages: pagesLocal };
+    }
+
+    // --- Render ---
+    if (!pageList || pageList.length === 0) {
       if (videoGrid) {
         const noResultsMessage = currentSearch
           ? `No videos found for "<strong>${currentSearch}</strong>"<br><small>Try a different or shorter keyword</small>`
-          : 'No videos in this category';
+          : "No videos in this category";
         videoGrid.innerHTML = `
           <div class="no-results" style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
             <h3 style="margin-bottom: 1rem;">No results</h3>
             <p style="color: #a7a7b3; margin-bottom: 2rem;">${noResultsMessage}</p>
-            ${currentSearch ? `<button onclick="clearSearch()" class="btn-secondary">✕ Clear search</button>` : ''}
+            ${currentSearch ? `<button onclick="clearSearch()" class="btn-secondary">✕ Clear search</button>` : ""}
           </div>`;
       }
     } else {
-      renderVideos(data.videos);
+      renderVideos(pageList);
 
-      // Info cho truy vấn
+      // Search info
+      const searchInput = document.getElementById("searchInput");
+      const mobileSearchInput = document.getElementById("mobileSearchInput");
+      if (searchInput) searchInput.classList.remove("searching");
+      if (mobileSearchInput) mobileSearchInput.classList.remove("searching");
+
       if (currentSearch && videoGrid) {
-        const info = document.createElement('a');
-        info.className = 'search-info';
+        const info = document.createElement("a");
+        info.className = "search-info";
+        const totalText = useClientPagination
+          ? pageList.length
+          : (data.pagination?.total ?? pageList.length);
         info.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:1rem;">
-            <span style="color:#eaeaea;"><strong>${data.pagination.total}</strong> video for "<strong>${currentSearch}</strong>"</span>
+            <span style="color:#eaeaea;"><strong>${totalText}</strong> videos for "<strong>${currentSearch}</strong>"</span>
             <button onclick="clearSearch()" style="background:rgba(255,107,107,.2);border:1px solid #ff6b6b;color:#ff6b6b;padding:.25rem .75rem;border-radius:6px;cursor:pointer;font-size:.8rem;transition:.2s">✕ Clear</button>
           </div>`;
         videoGrid.insertBefore(info, videoGrid.firstChild);
       }
     }
 
-    renderPagination(data.pagination);
-    markActiveNav(); // cập nhật trạng thái active sau khi render
-
+    renderPagination(pagination);
+    markActiveNav();
   } catch (err) {
-    console.error('Error loading videos:', err);
-    if (loadingSkeleton) loadingSkeleton.style.display = 'none';
+    console.error("Error loading videos:", err);
+    if (loadingSkeleton) loadingSkeleton.style.display = "none";
     if (videoGrid) {
-      videoGrid.style.display = 'grid';
+      videoGrid.style.display = "grid";
       videoGrid.innerHTML = `
         <div class="no-results" style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem;">
           <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
@@ -306,13 +491,19 @@ async function loadVideos() {
 // Helpers
 // =======================
 function clearSearch() {
-  currentSearch = '';
+  currentSearch = "";
   currentPage = 1;
 
-  const searchInput = document.getElementById('searchInput');
-  const mobileSearchInput = document.getElementById('mobileSearchInput');
-  if (searchInput) { searchInput.value = ''; searchInput.classList.remove('searching'); }
-  if (mobileSearchInput) { mobileSearchInput.value = ''; mobileSearchInput.classList.remove('searching'); }
+  const searchInput = document.getElementById("searchInput");
+  const mobileSearchInput = document.getElementById("mobileSearchInput");
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.classList.remove("searching");
+  }
+  if (mobileSearchInput) {
+    mobileSearchInput.value = "";
+    mobileSearchInput.classList.remove("searching");
+  }
 
   updateURL(true);
   loadVideos();
@@ -327,20 +518,22 @@ function getItemsPerPage() {
 }
 
 function renderVideos(videos) {
-  const videoGrid = document.getElementById('videoGrid');
+  const videoGrid = document.getElementById("videoGrid");
   if (!videoGrid) return;
-  videoGrid.innerHTML = '';
+  videoGrid.innerHTML = "";
 
-  videos.forEach(video => {
-    const a = document.createElement('a');
-    a.className = 'video-card';
+  videos.forEach((video) => {
+    const a = document.createElement("a");
+    a.className = "video-card";
 
-    const slug = (video.title || '')
+    const slug = (video.title || "")
       .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
-    a.href = '/watch/' + video.id + '/' + slug;
+    a.href = "/watch/" + video.id + "/" + slug;
     a.innerHTML = `
       <div class="video-thumbnail">
         <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" decoding="async"
@@ -364,20 +557,20 @@ function renderVideos(videos) {
 }
 
 function formatViews(v) {
-  const oneDecimal = (n) => n.toFixed(1).replace(/\.0$/, '');
-  if (v >= 1_000_000_000) return oneDecimal(v/1_000_000_000)+'B';
-  if (v >= 1_000_000)     return oneDecimal(v/1_000_000)+'M';
-  if (v >= 1_000)         return oneDecimal(v/1_000)+'K';
+  const oneDecimal = (n) => n.toFixed(1).replace(/\.0$/, "");
+  if (v >= 1_000_000_000) return oneDecimal(v / 1_000_000_000) + "B";
+  if (v >= 1_000_000) return oneDecimal(v / 1_000_000) + "M";
+  if (v >= 1_000) return oneDecimal(v / 1_000) + "K";
   return v.toString();
 }
 
 function renderPagination(pagination) {
-  const el = document.getElementById('pagination');
+  const el = document.getElementById("pagination");
   if (!el || !pagination || pagination.pages <= 1) {
-    if (el) el.innerHTML = '';
+    if (el) el.innerHTML = "";
     return;
   }
-  let html = '';
+  let html = "";
   if (pagination.page > 1) {
     html += `<button class="pagination-btn" onclick="goToPage(${pagination.page - 1})">Prev</button>`;
   }
@@ -385,13 +578,15 @@ function renderPagination(pagination) {
   const end = Math.min(pagination.pages, pagination.page + 2);
   if (start > 1) {
     html += `<button class="pagination-btn" onclick="goToPage(1)">1</button>`;
-    if (start > 2) html += `<span style="padding:0 .5rem;color:#a7a7b3;">...</span>`;
+    if (start > 2)
+      html += `<span style="padding:0 .5rem;color:#a7a7b3;">...</span>`;
   }
   for (let i = start; i <= end; i++) {
-    html += `<button class="pagination-btn ${i===pagination.page ? 'active':''}" onclick="goToPage(${i})">${i}</button>`;
+    html += `<button class="pagination-btn ${i === pagination.page ? "active" : ""}" onclick="goToPage(${i})">${i}</button>`;
   }
   if (end < pagination.pages) {
-    if (end < pagination.pages - 1) html += `<span style="padding:0 .5rem;color:#a7a7b3;">...</span>`;
+    if (end < pagination.pages - 1)
+      html += `<span style="padding:0 .5rem;color:#a7a7b3;">...</span>`;
     html += `<button class="pagination-btn" onclick="goToPage(${pagination.pages})">${pagination.pages}</button>`;
   }
   if (pagination.page < pagination.pages) {
@@ -402,12 +597,12 @@ function renderPagination(pagination) {
 
 function goToPage(page) {
   currentPage = page;
-  updateURL(true); // pushState để Back quay về trang trước
+  updateURL(true);
   loadVideos();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-// Xuất các hàm cần dùng từ HTML
+// Expose for inline handlers
 window.clearSearch = clearSearch;
 window.goToPage = goToPage;
 
@@ -415,92 +610,94 @@ window.goToPage = goToPage;
 // Floating Chat (home)
 // =======================
 function initFloatingChat() {
-  const btn = document.getElementById('chatToggle');
-  const panel = document.getElementById('chatPanel');
-  const closeBtn = document.getElementById('chatClose');
-  const backdrop = document.getElementById('chatBackdrop');
+  const btn = document.getElementById("chatToggle");
+  const panel = document.getElementById("chatPanel");
+  const closeBtn = document.getElementById("chatClose");
+  const backdrop = document.getElementById("chatBackdrop");
   if (!btn || !panel) return;
 
   const open = () => {
-    panel.classList.add('open');
-    backdrop?.classList.add('open');
-    localStorage.setItem('chatOpen', '1');
+    panel.classList.add("open");
+    backdrop?.classList.add("open");
+    localStorage.setItem("chatOpen", "1");
   };
   const hide = () => {
-    panel.classList.remove('open');
-    backdrop?.classList.remove('open');
-    localStorage.removeItem('chatOpen');
+    panel.classList.remove("open");
+    backdrop?.classList.remove("open");
+    localStorage.removeItem("chatOpen");
   };
 
-  // Toggle panel; nếu có teaser đang hiện thì bỏ đi
-  btn.addEventListener('click', () => {
-    const t = document.getElementById('chatTeaser');
+  btn.addEventListener("click", () => {
+    const t = document.getElementById("chatTeaser");
     if (t) t.remove();
-    panel.classList.contains('open') ? hide() : open();
+    panel.classList.contains("open") ? hide() : open();
   });
 
-  closeBtn?.addEventListener('click', hide);
-  backdrop?.addEventListener('click', hide);
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hide(); });
+  closeBtn?.addEventListener("click", hide);
+  backdrop?.addEventListener("click", hide);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hide();
+  });
 
-  // Khôi phục trạng thái mở (nếu có)
-  if (localStorage.getItem('chatOpen') === '1') open();
+  if (localStorage.getItem("chatOpen") === "1") open();
 
-  // ---- TEASER: luôn hiện trên TRANG CHỦ sau ~3s, rung ~5s rồi tự tắt ----
-  if (location.pathname === '/') {
+  // teaser every time on homepage
+  if (location.pathname === "/") {
     setTimeout(() => {
       if (!btn) return;
 
-      let teaser = document.getElementById('chatTeaser');
+      let teaser = document.getElementById("chatTeaser");
       if (!teaser) {
-        teaser = document.createElement('div');
-        teaser.id = 'chatTeaser';
-        teaser.className = 'chat-teaser';
-        teaser.innerHTML = '<strong>Chat with me</strong><br><span>Request video</span>';
+        teaser = document.createElement("div");
+        teaser.id = "chatTeaser";
+        teaser.className = "chat-teaser";
+        teaser.innerHTML =
+          "<strong>Chat with me</strong><br><span>Request video</span>";
         btn.appendChild(teaser);
       }
 
-      // show + shake
-      teaser.classList.add('show', 'shake');
+      teaser.classList.add("show", "shake");
 
-      // tắt sau 5s (không lưu localStorage => lần sau vào trang chủ lại hiện tiếp)
       setTimeout(() => {
-        teaser.classList.remove('show', 'shake');
+        teaser.classList.remove("show", "shake");
         teaser.remove();
       }, 5000);
 
-      // Click vào bong bóng -> mở chat ngay
-      teaser.addEventListener('click', () => {
-        teaser.remove();
-        open();
-      }, { once: true });
-
-    }, 3000); // delay 5s
+      teaser.addEventListener(
+        "click",
+        () => {
+          teaser.remove();
+          open();
+        },
+        { once: true },
+      );
+    }, 3000);
   }
 }
-
-
 
 // =======================
 // Init
 // =======================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
   initSearch();
   initMobileNav();
 
-  // lấy state từ URL & chuẩn hoá URL ban đầu
+  // from URL
   applyState(getStateFromURL());
   updateURL(false);
 
+  initFiltersUI();
   markActiveNav();
 
   generateSkeleton();
-  setTimeout(() => { loadVideos(); }, 100);
+  setTimeout(() => {
+    loadVideos();
+  }, 100);
 
-  // Reload data khi đổi breakpoint để lưới gọn
+  // Reload data when breakpoint changes
   let resizeTimeout;
   let __sizeBucket = getSizeBucket();
-  window.addEventListener('resize', () => {
+  window.addEventListener("resize", () => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
       const b = getSizeBucket();
@@ -512,19 +709,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   function getSizeBucket() {
     const w = window.innerWidth;
-    if (w <= 480) return 'xs';
-    if (w <= 768) return 'sm';
-    if (w <= 1199) return 'md';
-    return 'lg';
+    if (w <= 480) return "xs";
+    if (w <= 768) return "sm";
+    if (w <= 1199) return "md";
+    return "lg";
   }
 
-  // Back/Forward: khôi phục state từ history/URL rồi load
-  window.addEventListener('popstate', (e) => {
+  // Back/Forward
+  window.addEventListener("popstate", (e) => {
     const st = e.state || getStateFromURL();
     applyState(st);
     loadVideos();
   });
 
-  // Floating chat (trang chủ)
-  try { initFloatingChat(); } catch (e) { console.error(e); }
+  // Floating chat
+  try {
+    initFloatingChat();
+  } catch (e) {
+    console.error(e);
+  }
 });

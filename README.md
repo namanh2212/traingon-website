@@ -7,6 +7,7 @@ Website streaming video adult gay với đầy đủ tính năng admin panel, se
 ## Tính năng chính
 
 ### Frontend:
+
 - **Age Gate**: Xác thực tuổi trước khi truy cập
 - **Responsive Design**: Hỗ trợ desktop, tablet, mobile
 - **Video Grid**: Lưới video responsive (2-5 cột tùy màn hình)
@@ -18,6 +19,7 @@ Website streaming video adult gay với đầy đủ tính năng admin panel, se
 - **Pagination**: Phân trang thông minh
 
 ### Admin Panel:
+
 - **Two-Step Auth**: Đăng nhập 2 bước (user/pass + token)
 - **Video Management**: CRUD hoàn chỉnh cho video
 - **File Upload**: Upload thumbnail hoặc dùng URL

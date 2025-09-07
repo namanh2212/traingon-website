@@ -1,8 +1,8 @@
 // /public/js/ads.js — dán nguyên SNIPPET ExoClick vào các backtick là chạy
 (() => {
   const p = location.pathname;
-  const isHome  = (p === '/' || p.endsWith('/index.html'));
-  const isVideo = p.startsWith('/watch'); // sửa nếu route khác
+  const isHome = p === "/" || p.endsWith("/index.html");
+  const isVideo = p.startsWith("/watch"); // sửa nếu route khác
 
   // ====== DÁN 1 SNIPPET cho TRANG CHỦ (index) vào đây ======
   const HOME_SNIPPETS = [
@@ -31,24 +31,28 @@
     ad_trigger_delay = 0,
     ad_capping_enabled = false; 
 </script>
-<script type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>`
+<script type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>`,
   ];
 
   function inject(html) {
-    const box = document.createElement('div');
-    box.className = 'ads-slot';
+    const box = document.createElement("div");
+    box.className = "ads-slot";
     document.body.appendChild(box);
-    box.insertAdjacentHTML('beforeend', html);
+    box.insertAdjacentHTML("beforeend", html);
 
     // kích hoạt lại <script> khi chèn bằng HTML
-    box.querySelectorAll('script').forEach(old => {
-      const s = document.createElement('script');
-      if (old.src) { s.src = old.src; s.async = true; }
-      else { s.text = old.textContent; }
+    box.querySelectorAll("script").forEach((old) => {
+      const s = document.createElement("script");
+      if (old.src) {
+        s.src = old.src;
+        s.async = true;
+      } else {
+        s.text = old.textContent;
+      }
       old.replaceWith(s);
     });
   }
 
-  if (isHome)  HOME_SNIPPETS.forEach(sn => inject(String(sn)));
-  if (isVideo) VIDEO_SNIPPETS.forEach(sn => inject(String(sn)));
+  if (isHome) HOME_SNIPPETS.forEach((sn) => inject(String(sn)));
+  if (isVideo) VIDEO_SNIPPETS.forEach((sn) => inject(String(sn)));
 })();

@@ -6,40 +6,38 @@ let currentServerIndex = 0;
 function getVideoId() {
   const m = location.pathname.match(/^\/watch\/([^\/]+)/);
   if (m) return m[1];
-  return new URLSearchParams(location.search).get('id');
+  return new URLSearchParams(location.search).get("id");
 }
-
 
 // Load video data
 async function loadVideo() {
-    const videoId = getVideoId();
-    if (!videoId) {
-        window.location.href = '/';
-        return;
+  const videoId = getVideoId();
+  if (!videoId) {
+    window.location.href = "/";
+    return;
+  }
+
+  try {
+    console.log("Loading video with ID:", videoId);
+    const response = await fetch(`/api/videos/${videoId}`);
+    if (!response.ok) {
+      throw new Error("Video not found");
     }
-    
-    try {
-        console.log('Loading video with ID:', videoId);
-        const response = await fetch(`/api/videos/${videoId}`);
-        if (!response.ok) {
-            throw new Error('Video not found');
-        }
-        
-        currentVideo = await response.json();
-        console.log('Video loaded:', currentVideo);
-        
-        // Update page title
-        document.title = `${currentVideo.title} - Traingon.top`;
-        
-        // Render video
-        renderVideo();
-        
-        // Load related videos
-        loadRelatedVideos();
-        
-    } catch (error) {
-        console.error('Error loading video:', error);
-        document.getElementById('videoPlayer').innerHTML = `
+
+    currentVideo = await response.json();
+    console.log("Video loaded:", currentVideo);
+
+    // Update page title
+    document.title = `${currentVideo.title} - Traingon.top`;
+
+    // Render video
+    renderVideo();
+
+    // Load related videos
+    loadRelatedVideos();
+  } catch (error) {
+    console.error("Error loading video:", error);
+    document.getElementById("videoPlayer").innerHTML = `
             <div style="display: flex; align-items: center; justify-content: center; height: 60vh; background: rgba(255,255,255,0.1); border-radius: 16px; color: #a7a7b3; text-align: center;">
                 <div>
                     <div style="font-size: 2rem; margin-bottom: 1rem;">❌</div>
@@ -48,56 +46,59 @@ async function loadVideo() {
                 </div>
             </div>
         `;
-    }
+  }
 }
 
 // Render video
 function renderVideo() {
-    if (!currentVideo) return;
-    
-    // Render server buttons if multiple servers
-    if (currentVideo.embedUrls && currentVideo.embedUrls.length > 1) {
-        const serverButtons = document.getElementById('serverButtons');
-        serverButtons.style.display = 'flex';
-        
-        let buttonsHtml = '';
-        currentVideo.embedUrls.forEach((url, index) => {
-            buttonsHtml += `
-                <button class="server-btn ${index === 0 ? 'active' : ''}" onclick="switchServer(${index})">
+  if (!currentVideo) return;
+
+  // Render server buttons if multiple servers
+  if (currentVideo.embedUrls && currentVideo.embedUrls.length > 1) {
+    const serverButtons = document.getElementById("serverButtons");
+    serverButtons.style.display = "flex";
+
+    let buttonsHtml = "";
+    currentVideo.embedUrls.forEach((url, index) => {
+      buttonsHtml += `
+                <button class="server-btn ${index === 0 ? "active" : ""}" onclick="switchServer(${index})">
                     Server ${index + 1}
                 </button>
             `;
-        });
-        
-        serverButtons.innerHTML = buttonsHtml;
-    }
-    
-    // Render video player
-    renderVideoPlayer();
-    
-    // Render video details
-    renderVideoDetails();
-    
-    // Setup mobile chat
-    setupMobileChat();
+    });
+
+    serverButtons.innerHTML = buttonsHtml;
+  }
+
+  // Render video player
+  renderVideoPlayer();
+
+  // Render video details
+  renderVideoDetails();
+
+  // Setup mobile chat
+  setupMobileChat();
 }
 
 // Render video player
 function renderVideoPlayer() {
-    const videoPlayer = document.getElementById('videoPlayer');
-    const embedUrl = currentVideo.embedUrls[currentServerIndex];
-    
-    // Extract embed URL if it's a full page URL
-    let iframeUrl = embedUrl;
-    if (embedUrl.includes('mixdrop.co/') && !embedUrl.includes('/e/')) {
-        const videoId = embedUrl.split('/').pop();
-        iframeUrl = `https://mixdrop.co/e/${videoId}`;
-    } else if (embedUrl.includes('streamtape.com/') && !embedUrl.includes('/e/')) {
-        const videoId = embedUrl.split('/').pop();
-        iframeUrl = `https://streamtape.com/e/${videoId}`;
-    }
-    
-    videoPlayer.innerHTML = `
+  const videoPlayer = document.getElementById("videoPlayer");
+  const embedUrl = currentVideo.embedUrls[currentServerIndex];
+
+  // Extract embed URL if it's a full page URL
+  let iframeUrl = embedUrl;
+  if (embedUrl.includes("mixdrop.co/") && !embedUrl.includes("/e/")) {
+    const videoId = embedUrl.split("/").pop();
+    iframeUrl = `https://mixdrop.co/e/${videoId}`;
+  } else if (
+    embedUrl.includes("streamtape.com/") &&
+    !embedUrl.includes("/e/")
+  ) {
+    const videoId = embedUrl.split("/").pop();
+    iframeUrl = `https://streamtape.com/e/${videoId}`;
+  }
+
+  videoPlayer.innerHTML = `
         <iframe src="${iframeUrl}" 
                 width="100%" 
                 height="100%" 
@@ -110,35 +111,38 @@ function renderVideoPlayer() {
 
 // Switch server
 function switchServer(index) {
-    currentServerIndex = index;
-    
-    // Update active button
-    document.querySelectorAll('.server-btn').forEach((btn, i) => {
-        btn.classList.toggle('active', i === index);
-    });
-    
-    // Re-render player
-    renderVideoPlayer();
+  currentServerIndex = index;
+
+  // Update active button
+  document.querySelectorAll(".server-btn").forEach((btn, i) => {
+    btn.classList.toggle("active", i === index);
+  });
+
+  // Re-render player
+  renderVideoPlayer();
 }
 
 // Render video details
 function renderVideoDetails() {
-    const videoDetails = document.getElementById('videoDetails');
-    
-    const tags = currentVideo.tags ? currentVideo.tags.map(tag => 
-        `<span class="tag">${tag}</span>`
-    ).join('') : '';
-    
-    const downloadSection = currentVideo.category === 'japan' && currentVideo.downloadLink ? `
+  const videoDetails = document.getElementById("videoDetails");
+
+  const tags = currentVideo.tags
+    ? currentVideo.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")
+    : "";
+
+  const downloadSection =
+    currentVideo.category === "japan" && currentVideo.downloadLink
+      ? `
         <a href="${currentVideo.downloadLink}" class="download-link" target="_blank">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
             </svg>
             Tải xuống
         </a>
-    ` : '';
-    
-    videoDetails.innerHTML = `
+    `
+      : "";
+
+  videoDetails.innerHTML = `
         <h1 class="video-title">${currentVideo.title}</h1>
         <div class="video-meta">
             <div class="video-meta-item">
@@ -161,28 +165,28 @@ function renderVideoDetails() {
                 ${formatDate(currentVideo.createdAt)}
             </div>
         </div>
-        ${tags ? `<div class="video-tags">${tags}</div>` : ''}
-        ${currentVideo.notes ? `<div class="video-description">${currentVideo.notes}</div>` : ''}
+        ${tags ? `<div class="video-tags">${tags}</div>` : ""}
+        ${currentVideo.notes ? `<div class="video-description">${currentVideo.notes}</div>` : ""}
         ${downloadSection}
     `;
-    
-    videoDetails.style.display = 'block';
+
+  videoDetails.style.display = "block";
 }
 
 // Load related videos - SỬA LẠI HOÀN TOÀN
 async function loadRelatedVideos() {
-    try {
-        console.log('Loading related videos for video ID:', currentVideo.id);
-        
-        // Show loading state
-        const relatedGrid = document.getElementById('relatedGrid');
-        if (!relatedGrid) {
-            console.error('Related grid element not found');
-            return;
-        }
-        
-        // Show loading skeleton
-        relatedGrid.innerHTML = `
+  try {
+    console.log("Loading related videos for video ID:", currentVideo.id);
+
+    // Show loading state
+    const relatedGrid = document.getElementById("relatedGrid");
+    if (!relatedGrid) {
+      console.error("Related grid element not found");
+      return;
+    }
+
+    // Show loading skeleton
+    relatedGrid.innerHTML = `
             <div class="related-loading">
                 <div class="related-skeleton"></div>
                 <div class="related-skeleton"></div>
@@ -190,17 +194,17 @@ async function loadRelatedVideos() {
                 <div class="related-skeleton"></div>
             </div>
         `;
-        
-        const response = await fetch(`/api/videos/${currentVideo.id}/related`);
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const relatedVideos = await response.json();
-        console.log('Related videos received:', relatedVideos);
-        
-        if (relatedVideos.length === 0) {
-            relatedGrid.innerHTML = `
+
+    const response = await fetch(`/api/videos/${currentVideo.id}/related`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const relatedVideos = await response.json();
+    console.log("Related videos received:", relatedVideos);
+
+    if (relatedVideos.length === 0) {
+      relatedGrid.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem; color: #a7a7b3;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">📹</div>
                     <h3 style="color: #eaeaea; margin-bottom: 1rem;">Chưa có video liên quan</h3>
@@ -210,14 +214,21 @@ async function loadRelatedVideos() {
                     </a>
                 </div>
             `;
-            return;
-        }
-        
-        // Render related videos
-        relatedGrid.innerHTML = relatedVideos.map(video => `
-            <a class="video-card related-video-card" href="/watch/${video.id}/${(video.title||'').toLowerCase()
-  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-  .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')}">
+      return;
+    }
+
+    // Render related videos
+    relatedGrid.innerHTML = relatedVideos
+      .map(
+        (video) => `
+            <a class="video-card related-video-card" href="/watch/${video.id}/${(
+              video.title || ""
+            )
+              .toLowerCase()
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/(^-|-$)/g, "")}">
 
                 <div class="video-thumbnail">
                     <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" onerror="this.src='/images/placeholder.jpg'">
@@ -235,15 +246,16 @@ async function loadRelatedVideos() {
                     </div>
                 </div>
             </a>
-        `).join('');
-        
-        console.log('Related videos rendered successfully');
-        
-    } catch (error) {
-        console.error('Error loading related videos:', error);
-        const relatedGrid = document.getElementById('relatedGrid');
-        if (relatedGrid) {
-            relatedGrid.innerHTML = `
+        `,
+      )
+      .join("");
+
+    console.log("Related videos rendered successfully");
+  } catch (error) {
+    console.error("Error loading related videos:", error);
+    const relatedGrid = document.getElementById("relatedGrid");
+    if (relatedGrid) {
+      relatedGrid.innerHTML = `
                 <div style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem; color: #ff4757;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
                     <h3 style="color: #eaeaea; margin-bottom: 1rem;">Lỗi tải video liên quan</h3>
@@ -256,60 +268,63 @@ async function loadRelatedVideos() {
                     </button>
                 </div>
             `;
-        }
     }
+  }
 }
 
 // Function to navigate to another video
 function navigateToVideo(videoId, title) {
-  const base = (title || (currentVideo && currentVideo.title) || '');
-  const slug = base.toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+  const base = title || (currentVideo && currentVideo.title) || "";
+  const slug = base
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
   window.location.href = `/watch/${videoId}/${slug}`;
 }
-
 
 // Setup mobile chat
 function setupMobileChat() {
   const isMobile = window.innerWidth <= 1023;
-  const desktopChat = document.querySelector('.desktop-chat');
-  const mobileChat = document.querySelector('.mobile-chat');
-  const chatAccordion = document.querySelector('.chat-accordion');
-  const chatContent = document.querySelector('.chat-content');
+  const desktopChat = document.querySelector(".desktop-chat");
+  const mobileChat = document.querySelector(".mobile-chat");
+  const chatAccordion = document.querySelector(".chat-accordion");
+  const chatContent = document.querySelector(".chat-content");
 
   if (isMobile) {
-    if (desktopChat) desktopChat.style.display = 'none';
-    if (mobileChat) mobileChat.style.display = 'block';
+    if (desktopChat) desktopChat.style.display = "none";
+    if (mobileChat) mobileChat.style.display = "block";
 
     // Ẩn nút mở/đóng và MỞ SẴN chat
-    if (chatAccordion) chatAccordion.style.display = 'none';
-    if (chatContent) chatContent.classList.add('active');
+    if (chatAccordion) chatAccordion.style.display = "none";
+    if (chatContent) chatContent.classList.add("active");
   } else {
-    if (desktopChat) desktopChat.style.display = 'block';
-    if (mobileChat) mobileChat.style.display = 'none';
+    if (desktopChat) desktopChat.style.display = "block";
+    if (mobileChat) mobileChat.style.display = "none";
   }
 }
 
-
 // Format views count
 function formatViews(views) {
-  const oneDecimal = (n) => n.toFixed(1).replace(/\.0$/, '');
-  if (views >= 1000000000) {        // 1B+
-    return oneDecimal(views / 1000000000) + 'B';
-  } else if (views >= 1000000) {    // 1M+
-    return oneDecimal(views / 1000000) + 'M';
-  } else if (views >= 1000) {       // 1K+
-    return oneDecimal(views / 1000) + 'K';
+  const oneDecimal = (n) => n.toFixed(1).replace(/\.0$/, "");
+  if (views >= 1000000000) {
+    // 1B+
+    return oneDecimal(views / 1000000000) + "B";
+  } else if (views >= 1000000) {
+    // 1M+
+    return oneDecimal(views / 1000000) + "M";
+  } else if (views >= 1000) {
+    // 1K+
+    return oneDecimal(views / 1000) + "K";
   }
   return views.toString();
 }
 
-
 // Format date
 function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('vi-VN');
+  const date = new Date(dateString);
+  return date.toLocaleDateString("vi-VN");
 }
 
 // Make functions global
@@ -318,12 +333,12 @@ window.loadRelatedVideos = loadRelatedVideos;
 window.switchServer = switchServer;
 
 // Initialize everything
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Video page loaded');
-    loadVideo();
-    
-    // Handle window resize for mobile chat
-    window.addEventListener('resize', () => {
-        setupMobileChat();
-    });
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("Video page loaded");
+  loadVideo();
+
+  // Handle window resize for mobile chat
+  window.addEventListener("resize", () => {
+    setupMobileChat();
+  });
 });

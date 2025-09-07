@@ -175,20 +175,31 @@ if (time === "7d") {
   });
 }
 
-
-    // Sort
-    switch (sort) {
-  case "oldest":
-    videos.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-    break;
-  case "views": // desc
+    // ===== Sort cho Public (ưu tiên orderIndex nếu có) =====
+switch (sort) {
+  case "views":
     videos.sort((a, b) => (b.views || 0) - (a.views || 0));
     break;
-  case "views_asc": // NEW: asc
-    videos.sort((a, b) => (a.views || 0) - (b.views || 0));
+  case "oldest":
+    videos.sort(
+      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+    );
     break;
-  default: // newest
-    videos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  case "manual":
+    videos.sort((a, b) => {
+      const ao = a.orderIndex ?? -Infinity;
+      const bo = b.orderIndex ?? -Infinity;
+      if (bo !== ao) return bo - ao;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+    break;
+  default: // "newest" mặc định cũng ưu tiên orderIndex
+    videos.sort((a, b) => {
+      const ao = a.orderIndex ?? -Infinity;
+      const bo = b.orderIndex ?? -Infinity;
+      if (bo !== ao) return bo - ao;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
 }
 
 
@@ -404,16 +415,35 @@ app.get("/api/admin/videos", requireAuth, async (req, res) => {
     if (category && category !== "all") {
       videos = videos.filter((v) => v.category === category);
     }
-    switch (sort) {
-      case "oldest":
-        videos.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        break;
-      case "views":
-        videos.sort((a, b) => (b.views || 0) - (a.views || 0));
-        break;
-      default:
-        videos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
+    // ===== Sort cho Admin (ưu tiên orderIndex nếu có) =====
+switch (sort) {
+  case "views":
+    videos.sort((a, b) => (b.views || 0) - (a.views || 0));
+    break;
+  case "oldest":
+    videos.sort(
+      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
+    );
+    break;
+  case "manual": // đúng thứ tự thủ công: orderIndex desc, rồi fallback newest
+    videos.sort((a, b) => {
+      const ao = a.orderIndex ?? -Infinity;
+      const bo = b.orderIndex ?? -Infinity;
+      if (bo !== ao) return bo - ao;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+    break;
+  default: // "newest" cũng ưu tiên orderIndex nếu đã reorder
+    videos.sort((a, b) => {
+      const ao = a.orderIndex ?? -Infinity;
+      const bo = b.orderIndex ?? -Infinity;
+      if (bo !== ao) return bo - ao;
+      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+    });
+}
+
+
+
     videos = videos.map((v, i) => ({ ...v, sequentialId: i + 1 }));
 
     const total = videos.length;
@@ -435,30 +465,33 @@ app.get("/api/admin/videos", requireAuth, async (req, res) => {
   }
 });
 
+// CHỈ cập nhật orderIndex, KHÔNG đụng createdAt/updatedAt
 app.patch("/api/admin/videos/reorder", requireAuth, async (req, res) => {
   try {
     const { order } = req.body;
-    if (!Array.isArray(order) || !order.length)
+    if (!Array.isArray(order) || !order.length) {
       return res.status(400).json({ error: "Invalid order" });
+    }
 
     const videos = await readVideos();
     const byId = new Map(videos.map((v) => [String(v.id), v]));
     const idSet = new Set(order.map(String));
 
+    // ghép mảng theo thứ tự người dùng truyền lên
     const sorted = [];
     for (const id of order) {
       const v = byId.get(String(id));
       if (v) sorted.push(v);
     }
+    // phần còn lại giữ nguyên phía sau
     for (const v of videos) {
       if (!idSet.has(String(v.id))) sorted.push(v);
     }
 
-    const base = Date.now();
+    // gán orderIndex: số lớn hơn = ưu tiên cao hơn
+    const max = sorted.length;
     sorted.forEach((v, idx) => {
-      const iso = new Date(base - idx * 1000).toISOString();
-      v.createdAt = iso;
-      v.updatedAt = iso;
+      v.orderIndex = max - idx;
     });
 
     await writeVideos(sorted);
@@ -468,6 +501,7 @@ app.patch("/api/admin/videos/reorder", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
 
 app.get("/api/admin/videos/:id", requireAuth, async (req, res) => {
   try {
@@ -673,9 +707,7 @@ app.get("/watch/:id/:slug?", async (req, res) => {
       `<title>${escapeHtml(v.title)} — Traingon</title>`,
     );
 
-    const isoUpload = new Date(
-      v.updatedAt || v.createdAt || Date.now(),
-    ).toISOString(); // có múi giờ
+    const isoUpload = new Date(v.createdAt || Date.now()).toISOString(); // có múi giờ
     const embedUrl = canonical; // xem ngay trên /watch
     const contentUrl = v.downloadLink || ""; // nếu có link tải thì điền, không có thì để ""
 

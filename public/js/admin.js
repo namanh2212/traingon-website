@@ -1079,9 +1079,10 @@ function showConfirmModal(title, message, onConfirm) {
 // ====== SẮP XẾP THỦ CÔNG ======
 let reorderList = [];
 async function openReorderModal() {
-  const res = await fetch("/api/admin/videos?limit=1000", {
-    credentials: "include",
-  });
+  const res = await fetch("/api/admin/videos?limit=1000&sort=manual", {
+  credentials: "include",
+});
+
   if (!res.ok) {
     alert("Không tải được danh sách");
     return;
@@ -1135,6 +1136,7 @@ function moveItemToTop(id) {
   reorderList.unshift(...reorderList.splice(i, 1));
   renderReorderList();
 }
+
 async function saveOrder() {
   const order = reorderList.map((v) => v.id);
   const res = await fetch("/api/admin/videos/reorder", {

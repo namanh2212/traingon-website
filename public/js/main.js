@@ -356,7 +356,7 @@ function initMobileNav() {
 }
 
 // =======================
-// API: Load videos
+// API: Load videos (server-side filter/sort/paginate)
 // =======================
 async function loadVideos() {
   if (isLoading) return;
@@ -378,8 +378,18 @@ async function loadVideos() {
       category: currentCategory === "all" ? "" : currentCategory,
       search: currentSearch,
     });
-    if (window.matchMedia("(max-width: 768px)").matches)
+    if (window.matchMedia("(max-width: 768px)").matches) {
       params.set("limit", "20");
+    }
+
+    // NEW: gửi sort/time để server lọc & sort toàn cục trước khi phân trang
+    let sort = "newest";
+    if (currentViewSort === "highest") sort = "views";
+    else if (currentViewSort === "lowest") sort = "views_asc";
+    else if (currentTimeFilter === "oldest" && currentViewSort === "none") sort = "oldest";
+    params.set("sort", sort);
+
+    if (currentTimeFilter === "7d") params.set("time", "7d");
 
     const res = await fetch(`/api/videos?${params}`);
     const data = await res.json();
@@ -387,49 +397,11 @@ async function loadVideos() {
     if (loadingSkeleton) loadingSkeleton.style.display = "none";
     if (videoGrid) videoGrid.style.visibility = "visible";
 
-    // Sort helpers
-    const byCreatedAtDesc = (a, b) =>
-      new Date(b.createdAt) - new Date(a.createdAt);
-    const byCreatedAtAsc = (a, b) =>
-      new Date(a.createdAt) - new Date(b.createdAt);
-    const byViewsDesc = (a, b) => (b.views || 0) - (a.views || 0);
-    const byViewsAsc = (a, b) => (a.views || 0) - (b.views || 0);
+    // KHÔNG còn lọc/sort ở client – dùng dữ liệu đã phân trang từ server
+    const list = Array.isArray(data.videos) ? data.videos : [];
+    const pageList = list;
+    const pagination = data.pagination;
 
-    let list = Array.isArray(data.videos) ? [...data.videos] : [];
-
-    // --- Client filters ---
-    const useClientPagination = currentTimeFilter === "7d" || !!currentSearch;
-
-    // Time: 7 days
-    if (currentTimeFilter === "7d") {
-      const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      list = list.filter((v) => new Date(v.createdAt).getTime() >= since);
-    }
-
-    // Views sort
-    if (currentViewSort === "none") {
-      if (currentTimeFilter === "oldest") list.sort(byCreatedAtAsc);
-      else list.sort(byCreatedAtDesc);
-    } else if (currentViewSort === "highest") {
-      list.sort(byViewsDesc);
-    } else if (currentViewSort === "lowest") {
-      list.sort(byViewsAsc);
-    }
-
-    // --- Decide pagination source ---
-    let pageList = list;
-    let pagination = data.pagination;
-
-    if (useClientPagination) {
-      const effLimit = parseInt(params.get("limit") || String(limit), 10);
-      const pagesLocal = Math.max(1, Math.ceil(list.length / effLimit));
-      if (currentPage > pagesLocal) currentPage = pagesLocal; // tránh page 2 rỗng
-      const start = (currentPage - 1) * effLimit;
-      pageList = list.slice(start, start + effLimit);
-      pagination = { page: currentPage, pages: pagesLocal };
-    }
-
-    // --- Render ---
     if (!pageList || pageList.length === 0) {
       if (videoGrid) {
         const noResultsMessage = currentSearch
@@ -446,18 +418,17 @@ async function loadVideos() {
     } else {
       renderVideos(pageList);
 
-      // Search info
+      // clear trạng thái “searching”
       const searchInput = document.getElementById("searchInput");
       const mobileSearchInput = document.getElementById("mobileSearchInput");
       if (searchInput) searchInput.classList.remove("searching");
       if (mobileSearchInput) mobileSearchInput.classList.remove("searching");
 
+      // badge thông tin search
       if (currentSearch && videoGrid) {
         const info = document.createElement("a");
         info.className = "search-info";
-        const totalText = useClientPagination
-          ? pageList.length
-          : (data.pagination?.total ?? pageList.length);
+        const totalText = data.pagination?.total ?? pageList.length;
         info.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:1rem;">
             <span style="color:#eaeaea;"><strong>${totalText}</strong> videos for "<strong>${currentSearch}</strong>"</span>
@@ -479,13 +450,13 @@ async function loadVideos() {
           <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
           <h3>Failed to load data</h3>
           <p style="color:#a7a7b3;margin-bottom:2rem;">Please try again later</p>
-          <button onclick="loadVideos()" class="btn-primary">Retry</button>
         </div>`;
     }
   } finally {
     isLoading = false;
   }
 }
+
 
 // =======================
 // Helpers

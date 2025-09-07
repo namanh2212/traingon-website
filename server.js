@@ -133,6 +133,7 @@ app.get("/api/videos", async (req, res) => {
       search = "",
       category = "",
       sort = "newest",
+      time = "newest", // NEW: "newest" | "7d"
     } = req.query;
     let videos = await readVideos();
 
@@ -165,17 +166,31 @@ app.get("/api/videos", async (req, res) => {
       videos = videos.filter((v) => v.category === category);
     }
 
+    // NEW: Time filter (Last 7 days)
+if (time === "7d") {
+  const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  videos = videos.filter((v) => {
+    const t = Date.parse(v.createdAt || v.updatedAt || "");
+    return !isNaN(t) && t >= since;
+  });
+}
+
+
     // Sort
     switch (sort) {
-      case "oldest":
-        videos.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        break;
-      case "views":
-        videos.sort((a, b) => (b.views || 0) - (a.views || 0));
-        break;
-      default: // newest
-        videos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
+  case "oldest":
+    videos.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    break;
+  case "views": // desc
+    videos.sort((a, b) => (b.views || 0) - (a.views || 0));
+    break;
+  case "views_asc": // NEW: asc
+    videos.sort((a, b) => (a.views || 0) - (b.views || 0));
+    break;
+  default: // newest
+    videos.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
 
     // Pagination
     const total = videos.length;

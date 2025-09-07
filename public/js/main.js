@@ -255,14 +255,14 @@ async function loadVideos() {
     if (!data.videos || data.videos.length === 0) {
       if (videoGrid) {
         const noResultsMessage = currentSearch
-          ? `Không tìm thấy video với từ khóa "<strong>${currentSearch}</strong>"<br><small>Hãy thử từ khóa khác hoặc ngắn hơn</small>`
-          : 'Không tìm thấy video trong danh mục này';
+          ? `No videos found for "<strong>${currentSearch}</strong>"<br><small>Try a different or shorter keyword</small>`
+          : 'No videos in this category';
         videoGrid.innerHTML = `
           <div class="no-results" style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem;">
             <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
-            <h3 style="margin-bottom: 1rem;">Không có kết quả</h3>
+            <h3 style="margin-bottom: 1rem;">No results</h3>
             <p style="color: #a7a7b3; margin-bottom: 2rem;">${noResultsMessage}</p>
-            ${currentSearch ? `<button onclick="clearSearch()" class="btn-secondary">✕ Xóa tìm kiếm</button>` : ''}
+            ${currentSearch ? `<button onclick="clearSearch()" class="btn-secondary">✕ Clear search</button>` : ''}
           </div>`;
       }
     } else {
@@ -274,8 +274,8 @@ async function loadVideos() {
         info.className = 'search-info';
         info.innerHTML = `
           <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:1rem;">
-            <span style="color:#eaeaea;"><strong>${data.pagination.total}</strong> video cho "<strong>${currentSearch}</strong>"</span>
-            <button onclick="clearSearch()" style="background:rgba(255,107,107,.2);border:1px solid #ff6b6b;color:#ff6b6b;padding:.25rem .75rem;border-radius:6px;cursor:pointer;font-size:.8rem;transition:.2s">✕ Xóa</button>
+            <span style="color:#eaeaea;"><strong>${data.pagination.total}</strong> video for "<strong>${currentSearch}</strong>"</span>
+            <button onclick="clearSearch()" style="background:rgba(255,107,107,.2);border:1px solid #ff6b6b;color:#ff6b6b;padding:.25rem .75rem;border-radius:6px;cursor:pointer;font-size:.8rem;transition:.2s">✕ Clear</button>
           </div>`;
         videoGrid.insertBefore(info, videoGrid.firstChild);
       }
@@ -292,9 +292,9 @@ async function loadVideos() {
       videoGrid.innerHTML = `
         <div class="no-results" style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem;">
           <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
-          <h3>Lỗi tải dữ liệu</h3>
-          <p style="color:#a7a7b3;margin-bottom:2rem;">Vui lòng thử lại sau</p>
-          <button onclick="loadVideos()" class="btn-primary">Thử lại</button>
+          <h3>Failed to load data</h3>
+          <p style="color:#a7a7b3;margin-bottom:2rem;">Please try again later</p>
+          <button onclick="loadVideos()" class="btn-primary">Retry</button>
         </div>`;
     }
   } finally {
@@ -379,7 +379,7 @@ function renderPagination(pagination) {
   }
   let html = '';
   if (pagination.page > 1) {
-    html += `<button class="pagination-btn" onclick="goToPage(${pagination.page - 1})">Trước</button>`;
+    html += `<button class="pagination-btn" onclick="goToPage(${pagination.page - 1})">Prev</button>`;
   }
   const start = Math.max(1, pagination.page - 2);
   const end = Math.min(pagination.pages, pagination.page + 2);
@@ -395,7 +395,7 @@ function renderPagination(pagination) {
     html += `<button class="pagination-btn" onclick="goToPage(${pagination.pages})">${pagination.pages}</button>`;
   }
   if (pagination.page < pagination.pages) {
-    html += `<button class="pagination-btn" onclick="goToPage(${pagination.page + 1})">Sau</button>`;
+    html += `<button class="pagination-btn" onclick="goToPage(${pagination.page + 1})">Next</button>`;
   }
   el.innerHTML = html;
 }

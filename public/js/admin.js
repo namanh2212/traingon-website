@@ -429,6 +429,7 @@ function renderEditTags() {
 }
 function initEditTagsHandling() {
   const tagsInput = document.getElementById("tagsInput");
+  window.removeTagByIndex = (i) => { tags.splice(i, 1); renderEditTags(); };
   if (!tagsInput) return;
   tagsInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -448,7 +449,33 @@ function initEditTagsHandling() {
       renderEditTags();
     }
   });
+
+  // Nút + Tag (mobile-friendly)
+  const addTagBtn = document.getElementById("addTagBtn");
+  if (addTagBtn) {
+    addTagBtn.addEventListener("click", () => {
+      const t = tagsInput.value.trim();
+      if (t && !tags.includes(t)) {
+        tags.push(t);
+        // dùng renderEditTags() sẵn có
+        const tagsDisplay = document.getElementById("tagsDisplay");
+        tagsDisplay.innerHTML = tags
+          .map((tag, index) => `
+            <span class="tag-chip">
+              ${tag}
+              <button type="button" class="tag-remove" onclick="removeTagByIndex(${index})">×</button>
+            </span>`
+          ).join("");
+      }
+      tagsInput.value = "";
+      tagsInput.focus();
+    });
+  }
+
 }
+
+
+
 async function submitEditVideoForm(videoId) {
   const form = document.getElementById("updateVideoForm");
   if (!form) return;
@@ -894,7 +921,31 @@ function initTagsHandling() {
       .join("");
   }
   window.removeTagByIndex = removeTag;
+
+// Nút + Tag (mobile-friendly)
+  const addTagBtn = document.getElementById("addTagBtn");
+  if (addTagBtn) {
+    addTagBtn.addEventListener("click", () => {
+      const t = tagsInput.value.trim();
+      if (t && !tags.includes(t)) {
+        tags.push(t);
+        // dùng renderTags() sẵn có trong hàm
+        const tagsDisplay = document.getElementById("tagsDisplay");
+        tagsDisplay.innerHTML = tags
+          .map((tag, index) => `
+            <span class="tag-chip">
+              ${tag}
+              <button type="button" class="tag-remove" onclick="removeTagByIndex(${index})">×</button>
+            </span>`
+          ).join("");
+      }
+      tagsInput.value = "";
+      tagsInput.focus();
+    });
+  }
+
 }
+
 
 // Notes counter
 function initNotesCounter() {

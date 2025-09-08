@@ -209,6 +209,8 @@
                     placeholder="Nhập tag và nhấn Enter..."
                     class="tags-input"
                   />
+                  <button type="button" id="addTagBtn" class="btn-secondary">+ Tag</button>
+
                 </div>
                 <div class="form-hint">
                   Nhấn Enter hoặc dấu phẩy để thêm tag, Backspace để xóa
@@ -248,7 +250,7 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="/js/auth.js"></script>
-    <script src="/js/admin.js?v=79"></script>
+    <script src="/js/admin.js?v=99"></script>
     <script>
       document.addEventListener("DOMContentLoaded", async () => {
         const ok = await requireAuth();

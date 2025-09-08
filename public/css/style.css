@@ -1581,10 +1581,12 @@ body {
   position: relative;
   width: 100%;
   aspect-ratio: 16/9;
-  background: transparent;
+  background: #000;
   border-radius: 16px;
   overflow: hidden;
 }
+
+/* Iframe (hoster) */
 .player-shell iframe {
   position: absolute;
   inset: 0;
@@ -1593,6 +1595,36 @@ body {
   border: 0;
   background: #000;
 }
+
+/* HTML5 video & Video.js tech: fit trọn khung cho cả video dọc */
+.player-shell video,
+.player-shell .video-js .vjs-tech {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;  /* không crop, có viền đen nếu cần */
+  background: #000;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+
+}
+
+/* Vỏ Video.js (nếu bạn vẫn dùng ở nơi khác) */
+.player-shell .video-js {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  border-radius: 16px;
+}
+.player-shell .vjs-poster {
+  object-fit: contain;
+  background: #000;
+}
+
+/* Lớp phủ “dính click” của bạn (giữ nguyên) */
 .exo-gate {
   position: absolute;
   inset: 0;
@@ -1603,11 +1635,9 @@ body {
   height: 100%;
   background: transparent;
   cursor: pointer;
-  z-index: 9999;
+  z-index: 1000;
 }
-.exo-gate:focus {
-  outline: none;
-}
+.exo-gate:focus { outline: none; }
 
 /* === Video page: gọn & nhỏ hơn === */
 #videoDetails { padding: 1rem; margin-bottom: 1rem; }

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Video - Traingon.top</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/css/style.css?v=4" />
+    <link rel="stylesheet" href="/css/style.css?v=11" />
   </head>
   <body>
     <!-- Header (same as index.html) -->
@@ -253,26 +253,21 @@
 
     <!-- ==== EXO OVERLAY: JS (xóa block này để tắt) ==== -->
     <script>
-      (function () {
-        var gate = document.getElementById("exoGate");
-        if (!gate) return;
+  (function () {
+    var gate = document.getElementById("exoGate");
+    if (!gate) return;
+    gate.addEventListener("click", function () {
+      sessionStorage.setItem("exo_gate_done", "1");
+      gate.remove(); // chỉ gỡ overlay, không gọi VAST nữa
+    }, { passive: true });
+  })();
+</script>
 
-        // Chỉ ăn 1 click/1 session. Muốn lần nào vào cũng ăn click thì xóa 3 dòng sessionStorage.
-        //if (sessionStorage.getItem('exo_gate_done') === '1') { gate.remove(); return; }
 
-        gate.addEventListener(
-          "click",
-          function () {
-            sessionStorage.setItem("exo_gate_done", "1");
-            // KHÔNG chặn sự kiện (để ExoClick bắt được click)
-            gate.remove(); // bỏ lớp phủ sau 1 lần
-          },
-          { passive: true },
-        );
-      })();
-    </script>
-    <!-- ==== /EXO OVERLAY ==== -->
+    
+   <!-- THAY các script player như sau -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 
-    <script src="/js/video.js"></script>
+    <script src="/js/video.js?v=11"></script>
   </body>
 </html>

@@ -9,6 +9,27 @@ function getVideoId() {
   return new URLSearchParams(location.search).get("id");
 }
 
+// Helper: nạp script 1 lần, trả promise resolve khi globalName có mặt
+function loadScriptOnce(src, globalName) {
+  return new Promise((resolve, reject) => {
+    if (globalName && typeof window[globalName] !== "undefined") return resolve(window[globalName]);
+    // nếu script đã có trong DOM thì đợi onload/onerror
+    const exists = Array.from(document.scripts).some(s => s.src === src);
+    if (exists && globalName && typeof window[globalName] !== "undefined") return resolve(window[globalName]);
+
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = true;
+    s.onload = () => {
+      if (!globalName || typeof window[globalName] !== "undefined") resolve(window[globalName]);
+      else reject(new Error(globalName + " not available after load"));
+    };
+    s.onerror = () => reject(new Error("Failed to load " + src));
+    document.head.appendChild(s);
+  });
+}
+
+
 // Load video data
 async function loadVideo() {
   const videoId = getVideoId();
@@ -82,32 +103,67 @@ function renderVideo() {
 
 // Render video player
 function renderVideoPlayer() {
-  const videoPlayer = document.getElementById("videoPlayer");
-  const embedUrl = currentVideo.embedUrls[currentServerIndex];
+  const wrap = document.getElementById("videoPlayer");
+  const url = (currentVideo.embedUrls || [])[currentServerIndex] || "";
 
-  // Extract embed URL if it's a full page URL
-  let iframeUrl = embedUrl;
-  if (embedUrl.includes("mixdrop.co/") && !embedUrl.includes("/e/")) {
-    const videoId = embedUrl.split("/").pop();
-    iframeUrl = `https://mixdrop.co/e/${videoId}`;
-  } else if (
-    embedUrl.includes("streamtape.com/") &&
-    !embedUrl.includes("/e/")
-  ) {
-    const videoId = embedUrl.split("/").pop();
-    iframeUrl = `https://streamtape.com/e/${videoId}`;
+  // Link file trực tiếp?
+  const isHls = /\.m3u8(\?|$)/i.test(url);
+  const isFile = /\.(mp4|webm|ogg)(\?|$)/i.test(url);
+
+  // 1) File trực tiếp => dùng Video.js + IMA (VAST)
+// 1) File trực tiếp => dùng HTML5 + HLS (không IMA)
+if (isHls || isFile) {
+  wrap.innerHTML = `
+    <video id="html5player"
+      controls playsinline preload="metadata"
+      style="width:100%;height:100%;background:#000;border-radius:12px;object-fit:contain;">
+    </video>
+  `;
+  const el = document.getElementById('html5player');
+  // Ẩn nút download + tắt PiP + chặn menu chuột phải
+    el.setAttribute('controlsList', 'nodownload');
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+  if (isHls) {
+    if (window.Hls && window.Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(el);
+    } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
+      el.src = url; // Safari
+    } else {
+      // nạp HLS động nếu thiếu
+      loadScriptOnce('https://cdn.jsdelivr.net/npm/hls.js@1', 'Hls').then(() => {
+        if (window.Hls && window.Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(url);
+          hls.attachMedia(el);
+        }
+      }).catch(()=>{ /* bỏ qua */ });
+    }
+  } else {
+    el.src = url; // mp4/webm/ogg
   }
 
-  videoPlayer.innerHTML = `
-        <iframe src="${iframeUrl}" 
-                width="100%" 
-                height="100%" 
-                frameborder="0" 
-                scrolling="no" 
-                allowfullscreen>
-        </iframe>
-    `;
+  return;
 }
+
+  // 2) Còn lại: link hoster (mixdrop/streamtape) => giữ iframe như cũ
+  let iframeUrl = url;
+  if (url.includes("mixdrop.co/") && !url.includes("/e/")) {
+    const id = url.split("/").pop();
+    iframeUrl = `https://mixdrop.co/e/${id}`;
+  } else if (url.includes("streamtape.com/") && !url.includes("/e/")) {
+    const id = url.split("/").pop();
+    iframeUrl = `https://streamtape.com/e/${id}`;
+  }
+
+  wrap.innerHTML = `
+    <iframe src="${iframeUrl}"
+            width="100%" height="100%"
+            frameborder="0" scrolling="no" allowfullscreen></iframe>
+  `;
+}
+
 
 // Switch server
 function switchServer(index) {

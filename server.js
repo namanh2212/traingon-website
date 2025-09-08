@@ -180,6 +180,9 @@ switch (sort) {
   case "views":
     videos.sort((a, b) => (b.views || 0) - (a.views || 0));
     break;
+  case "views_asc":
+  videos.sort((a, b) => (a.views || 0) - (b.views || 0));
+  break;
   case "oldest":
     videos.sort(
       (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)

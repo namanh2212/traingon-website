@@ -102,6 +102,29 @@ function normalizeB2(url) {
   }
 }
 
+// Tự động chuẩn hoá embedUrl1 khi form đang ở chế độ 1 link
+function attachEmbedNormalizationIfSingle() {
+  const input = document.querySelector('input[name="embedUrl1"]');
+  if (!input) return;
+
+  const handler = () => {
+    const embedCount = parseInt(
+      document.querySelector('input[name="embedCount"]:checked')?.value || "1"
+    );
+    if (embedCount !== 1) return; // chỉ auto khi đúng 1 URL
+
+    const raw = (input.value || "").trim();
+    if (!raw) return;
+
+    const norm = normalizeB2(raw);
+    input.value = norm;
+  };
+
+  ["blur", "change"].forEach((ev) => input.addEventListener(ev, handler));
+  input.addEventListener("paste", () => setTimeout(handler, 0)); // đợi nội dung dán xong rồi chuẩn hoá
+}
+
+
 // Loading states - CHỈ CHO DASHBOARD
 function showLoadingSkeleton() {
   const loadingSkeleton = document.getElementById("loadingSkeleton");
@@ -407,6 +430,8 @@ function updateEmbedInputsForEdit(count) {
       </div>`;
   }
   embedInputs.innerHTML = html;
+  // 🆕 gắn auto-normalize khi đang ở chế độ 1 link
+  attachEmbedNormalizationIfSingle();
 }
 function handleEditFormSubmit(e) {
   e.preventDefault();
@@ -746,6 +771,9 @@ function updateEmbedInputs(count) {
       </div>`;
   }
   embedInputs.innerHTML = html;
+
+  // 🆕 gắn auto-normalize khi đang ở chế độ 1 link
+  attachEmbedNormalizationIfSingle();
 }
 
 // Thumbnail handling

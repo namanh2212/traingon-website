@@ -513,48 +513,44 @@ app.get("/api/admin/videos/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.post(
-  "/api/admin/videos",
-  requireAuth,
-  upload.single("thumbnail"),
-  async (req, res) => {
-    try {
-      const videos = await readVideos();
-      const {
-        title,
-        embedUrls,
-        thumbnailUrl,
-        duration,
-        category,
-        tags,
-        notes,
-        downloadLink,
-      } = req.body;
+app.post("/api/admin/videos", requireAuth, upload.single("thumbnail"), async (req, res) => {
+  try {
+    const videos = await readVideos();
+    const { title, embedUrls, thumbnailUrl, duration, category, tags, notes, downloadLink } = req.body;
 
-      const newVideo = {
-        id: Date.now().toString(),
-        title,
-        embedUrls: JSON.parse(embedUrls || "[]"),
-        thumbnail: req.file ? `/uploads/${req.file.filename}` : thumbnailUrl,
-        duration,
-        category: category || "none",
-        tags: JSON.parse(tags || "[]"),
-        notes: notes || "",
-        downloadLink: downloadLink || "",
-        views: 0,
-        published: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+    // ⬅️ THÊM 1 ĐOẠN NGẮN NGAY Ở ĐÂY: tính max orderIndex hiện có
+    const maxOrderIndex = videos.reduce((m, v) => {
+      const oi = Number.isFinite(v?.orderIndex) ? v.orderIndex : -Infinity;
+      return oi > m ? oi : m;
+    }, -Infinity);
 
-      videos.unshift(newVideo);
-      await writeVideos(videos);
-      res.json(newVideo);
-    } catch (error) {
-      res.status(500).json({ error: "Server error" });
-    }
-  },
-);
+    const newVideo = {
+      id: Date.now().toString(),
+      title,
+      embedUrls: JSON.parse(embedUrls || "[]"),
+      thumbnail: req.file ? `/uploads/${req.file.filename}` : thumbnailUrl,
+      duration,
+      category: category || "none",
+      tags: JSON.parse(tags || "[]"),
+      notes: notes || "",
+      downloadLink: downloadLink || "",
+      views: 0,
+      published: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // ⬅️ THÊM 1 DÒNG NÀY: đẩy video mới lên TOP theo cơ chế sort hiện tại
+    if (Number.isFinite(maxOrderIndex)) newVideo.orderIndex = maxOrderIndex + 1;
+
+    videos.unshift(newVideo);
+    await writeVideos(videos);
+    res.json(newVideo);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 app.put(
   "/api/admin/videos/:id",

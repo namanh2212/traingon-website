@@ -167,44 +167,43 @@ app.get("/api/videos", async (req, res) => {
     }
 
     // NEW: Time filter (Last 7 days)
-if (time === "7d") {
-  const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  videos = videos.filter((v) => {
-    const t = Date.parse(v.createdAt || v.updatedAt || "");
-    return !isNaN(t) && t >= since;
-  });
-}
+    if (time === "7d") {
+      const since = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      videos = videos.filter((v) => {
+        const t = Date.parse(v.createdAt || v.updatedAt || "");
+        return !isNaN(t) && t >= since;
+      });
+    }
 
     // ===== Sort cho Public (ưu tiên orderIndex nếu có) =====
-switch (sort) {
-  case "views":
-    videos.sort((a, b) => (b.views || 0) - (a.views || 0));
-    break;
-  case "views_asc":
-  videos.sort((a, b) => (a.views || 0) - (b.views || 0));
-  break;
-  case "oldest":
-    videos.sort(
-      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
-    );
-    break;
-  case "manual":
-    videos.sort((a, b) => {
-      const ao = a.orderIndex ?? -Infinity;
-      const bo = b.orderIndex ?? -Infinity;
-      if (bo !== ao) return bo - ao;
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
-    break;
-  default: // "newest" mặc định cũng ưu tiên orderIndex
-    videos.sort((a, b) => {
-      const ao = a.orderIndex ?? -Infinity;
-      const bo = b.orderIndex ?? -Infinity;
-      if (bo !== ao) return bo - ao;
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
-}
-
+    switch (sort) {
+      case "views":
+        videos.sort((a, b) => (b.views || 0) - (a.views || 0));
+        break;
+      case "views_asc":
+        videos.sort((a, b) => (a.views || 0) - (b.views || 0));
+        break;
+      case "oldest":
+        videos.sort(
+          (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+        );
+        break;
+      case "manual":
+        videos.sort((a, b) => {
+          const ao = a.orderIndex ?? -Infinity;
+          const bo = b.orderIndex ?? -Infinity;
+          if (bo !== ao) return bo - ao;
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+        break;
+      default: // "newest" mặc định cũng ưu tiên orderIndex
+        videos.sort((a, b) => {
+          const ao = a.orderIndex ?? -Infinity;
+          const bo = b.orderIndex ?? -Infinity;
+          if (bo !== ao) return bo - ao;
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+    }
 
     // Pagination
     const total = videos.length;
@@ -419,33 +418,31 @@ app.get("/api/admin/videos", requireAuth, async (req, res) => {
       videos = videos.filter((v) => v.category === category);
     }
     // ===== Sort cho Admin (ưu tiên orderIndex nếu có) =====
-switch (sort) {
-  case "views":
-    videos.sort((a, b) => (b.views || 0) - (a.views || 0));
-    break;
-  case "oldest":
-    videos.sort(
-      (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0)
-    );
-    break;
-  case "manual": // đúng thứ tự thủ công: orderIndex desc, rồi fallback newest
-    videos.sort((a, b) => {
-      const ao = a.orderIndex ?? -Infinity;
-      const bo = b.orderIndex ?? -Infinity;
-      if (bo !== ao) return bo - ao;
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
-    break;
-  default: // "newest" cũng ưu tiên orderIndex nếu đã reorder
-    videos.sort((a, b) => {
-      const ao = a.orderIndex ?? -Infinity;
-      const bo = b.orderIndex ?? -Infinity;
-      if (bo !== ao) return bo - ao;
-      return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
-    });
-}
-
-
+    switch (sort) {
+      case "views":
+        videos.sort((a, b) => (b.views || 0) - (a.views || 0));
+        break;
+      case "oldest":
+        videos.sort(
+          (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+        );
+        break;
+      case "manual": // đúng thứ tự thủ công: orderIndex desc, rồi fallback newest
+        videos.sort((a, b) => {
+          const ao = a.orderIndex ?? -Infinity;
+          const bo = b.orderIndex ?? -Infinity;
+          if (bo !== ao) return bo - ao;
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+        break;
+      default: // "newest" cũng ưu tiên orderIndex nếu đã reorder
+        videos.sort((a, b) => {
+          const ao = a.orderIndex ?? -Infinity;
+          const bo = b.orderIndex ?? -Infinity;
+          if (bo !== ao) return bo - ao;
+          return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+        });
+    }
 
     videos = videos.map((v, i) => ({ ...v, sequentialId: i + 1 }));
 
@@ -504,7 +501,6 @@ app.patch("/api/admin/videos/reorder", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 app.get("/api/admin/videos/:id", requireAuth, async (req, res) => {
   try {

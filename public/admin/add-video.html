@@ -180,11 +180,7 @@
               </div>
 
               <!-- Download Link (Japan only) -->
-              <div
-                id="downloadLinkGroup"
-                class="form-group full-width"
-                style="display: none"
-              >
+              <div id="downloadLinkGroup" class="form-group full-width">
                 <label for="downloadLink" class="form-label"
                   >Link Download (tùy chọn)</label
                 >
@@ -195,7 +191,9 @@
                   placeholder="https://..."
                   class="form-input"
                 />
-                <div class="form-hint">Chỉ hiển thị cho danh mục Japan</div>
+                <div class="form-hint">
+                  Để trống nếu không muốn hiển thị nút Tải xuống
+                </div>
               </div>
 
               <!-- Tags -->
@@ -209,8 +207,9 @@
                     placeholder="Nhập tag và nhấn Enter..."
                     class="tags-input"
                   />
-                  <button type="button" id="addTagBtn" class="btn-secondary">+ Tag</button>
-
+                  <button type="button" id="addTagBtn" class="btn-secondary">
+                    + Tag
+                  </button>
                 </div>
                 <div class="form-hint">
                   Nhấn Enter hoặc dấu phẩy để thêm tag, Backspace để xóa

@@ -253,20 +253,22 @@
 
     <!-- ==== EXO OVERLAY: JS (xóa block này để tắt) ==== -->
     <script>
-  (function () {
-    var gate = document.getElementById("exoGate");
-    if (!gate) return;
-    gate.addEventListener("click", function () {
-      sessionStorage.setItem("exo_gate_done", "1");
-      gate.remove(); // chỉ gỡ overlay, không gọi VAST nữa
-    }, { passive: true });
-  })();
-</script>
+      (function () {
+        var gate = document.getElementById("exoGate");
+        if (!gate) return;
+        gate.addEventListener(
+          "click",
+          function () {
+            sessionStorage.setItem("exo_gate_done", "1");
+            gate.remove(); // chỉ gỡ overlay, không gọi VAST nữa
+          },
+          { passive: true },
+        );
+      })();
+    </script>
 
-
-    
-   <!-- THAY các script player như sau -->
-<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <!-- THAY các script player như sau -->
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
 
     <script src="/js/video.js?v=11"></script>
   </body>

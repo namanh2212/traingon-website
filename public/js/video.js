@@ -12,23 +12,25 @@ function getVideoId() {
 // Helper: nạp script 1 lần, trả promise resolve khi globalName có mặt
 function loadScriptOnce(src, globalName) {
   return new Promise((resolve, reject) => {
-    if (globalName && typeof window[globalName] !== "undefined") return resolve(window[globalName]);
+    if (globalName && typeof window[globalName] !== "undefined")
+      return resolve(window[globalName]);
     // nếu script đã có trong DOM thì đợi onload/onerror
-    const exists = Array.from(document.scripts).some(s => s.src === src);
-    if (exists && globalName && typeof window[globalName] !== "undefined") return resolve(window[globalName]);
+    const exists = Array.from(document.scripts).some((s) => s.src === src);
+    if (exists && globalName && typeof window[globalName] !== "undefined")
+      return resolve(window[globalName]);
 
     const s = document.createElement("script");
     s.src = src;
     s.async = true;
     s.onload = () => {
-      if (!globalName || typeof window[globalName] !== "undefined") resolve(window[globalName]);
+      if (!globalName || typeof window[globalName] !== "undefined")
+        resolve(window[globalName]);
       else reject(new Error(globalName + " not available after load"));
     };
     s.onerror = () => reject(new Error("Failed to load " + src));
     document.head.appendChild(s);
   });
 }
-
 
 // Load video data
 async function loadVideo() {
@@ -111,41 +113,45 @@ function renderVideoPlayer() {
   const isFile = /\.(mp4|webm|ogg)(\?|$)/i.test(url);
 
   // 1) File trực tiếp => dùng Video.js + IMA (VAST)
-// 1) File trực tiếp => dùng HTML5 + HLS (không IMA)
-if (isHls || isFile) {
-  wrap.innerHTML = `
+  // 1) File trực tiếp => dùng HTML5 + HLS (không IMA)
+  if (isHls || isFile) {
+    wrap.innerHTML = `
     <video id="html5player"
       controls playsinline preload="metadata"
       style="width:100%;height:100%;background:#000;border-radius:12px;object-fit:contain;">
     </video>
   `;
-  const el = document.getElementById('html5player');
-  // Ẩn nút download + tắt PiP + chặn menu chuột phải
-    el.setAttribute('controlsList', 'nodownload');
-    el.addEventListener('contextmenu', (e) => e.preventDefault());
-  if (isHls) {
-    if (window.Hls && window.Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(url);
-      hls.attachMedia(el);
-    } else if (el.canPlayType('application/vnd.apple.mpegurl')) {
-      el.src = url; // Safari
+    const el = document.getElementById("html5player");
+    // Ẩn nút download + tắt PiP + chặn menu chuột phải
+    el.setAttribute("controlsList", "nodownload");
+    el.addEventListener("contextmenu", (e) => e.preventDefault());
+    if (isHls) {
+      if (window.Hls && window.Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(url);
+        hls.attachMedia(el);
+      } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
+        el.src = url; // Safari
+      } else {
+        // nạp HLS động nếu thiếu
+        loadScriptOnce("https://cdn.jsdelivr.net/npm/hls.js@1", "Hls")
+          .then(() => {
+            if (window.Hls && window.Hls.isSupported()) {
+              const hls = new Hls();
+              hls.loadSource(url);
+              hls.attachMedia(el);
+            }
+          })
+          .catch(() => {
+            /* bỏ qua */
+          });
+      }
     } else {
-      // nạp HLS động nếu thiếu
-      loadScriptOnce('https://cdn.jsdelivr.net/npm/hls.js@1', 'Hls').then(() => {
-        if (window.Hls && window.Hls.isSupported()) {
-          const hls = new Hls();
-          hls.loadSource(url);
-          hls.attachMedia(el);
-        }
-      }).catch(()=>{ /* bỏ qua */ });
+      el.src = url; // mp4/webm/ogg
     }
-  } else {
-    el.src = url; // mp4/webm/ogg
-  }
 
-  return;
-}
+    return;
+  }
 
   // 2) Còn lại: link hoster (mixdrop/streamtape) => giữ iframe như cũ
   let iframeUrl = url;
@@ -163,7 +169,6 @@ if (isHls || isFile) {
             frameborder="0" scrolling="no" allowfullscreen></iframe>
   `;
 }
-
 
 // Switch server
 function switchServer(index) {
@@ -186,17 +191,19 @@ function renderVideoDetails() {
     ? currentVideo.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")
     : "";
 
-  const downloadSection =
-    currentVideo.category === "japan" && currentVideo.downloadLink
-      ? `
-        <a href="${currentVideo.downloadLink}" class="download-link" target="_blank">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-            </svg>
-            Tải xuống
-        </a>
-    `
-      : "";
+  const dl = currentVideo.downloadLink;
+  const downloadSection = dl
+    ? `
+    <a href="${dl}${dl.includes("?") ? "&" : "?"}dl=1"
+       class="download-link"
+       rel="noopener">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+      </svg>
+      Tải xuống
+    </a>
+  `
+    : "";
 
   videoDetails.innerHTML = `
         <h1 class="video-title">${currentVideo.title}</h1>

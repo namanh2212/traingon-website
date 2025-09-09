@@ -386,7 +386,8 @@ async function loadVideos() {
     let sort = "newest";
     if (currentViewSort === "highest") sort = "views";
     else if (currentViewSort === "lowest") sort = "views_asc";
-    else if (currentTimeFilter === "oldest" && currentViewSort === "none") sort = "oldest";
+    else if (currentTimeFilter === "oldest" && currentViewSort === "none")
+      sort = "oldest";
     params.set("sort", sort);
 
     if (currentTimeFilter === "7d") params.set("time", "7d");
@@ -456,7 +457,6 @@ async function loadVideos() {
     isLoading = false;
   }
 }
-
 
 // =======================
 // Helpers

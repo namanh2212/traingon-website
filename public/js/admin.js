@@ -109,7 +109,7 @@ function attachEmbedNormalizationIfSingle() {
 
   const handler = () => {
     const embedCount = parseInt(
-      document.querySelector('input[name="embedCount"]:checked')?.value || "1"
+      document.querySelector('input[name="embedCount"]:checked')?.value || "1",
     );
     if (embedCount !== 1) return; // chỉ auto khi đúng 1 URL
 
@@ -123,7 +123,6 @@ function attachEmbedNormalizationIfSingle() {
   ["blur", "change"].forEach((ev) => input.addEventListener(ev, handler));
   input.addEventListener("paste", () => setTimeout(handler, 0)); // đợi nội dung dán xong rồi chuẩn hoá
 }
-
 
 // Loading states - CHỈ CHO DASHBOARD
 function showLoadingSkeleton() {
@@ -352,9 +351,7 @@ function populateEditForm(video) {
   if (categorySelect) {
     categorySelect.value = video.category || "none";
     const downloadLinkGroup = document.getElementById("downloadLinkGroup");
-    if (downloadLinkGroup)
-      downloadLinkGroup.style.display =
-        video.category === "japan" ? "block" : "none";
+    if (downloadLinkGroup) downloadLinkGroup.style.display = "block"; // luôn hiển thị
   }
 
   const publishedRadio = document.querySelector(
@@ -454,7 +451,10 @@ function renderEditTags() {
 }
 function initEditTagsHandling() {
   const tagsInput = document.getElementById("tagsInput");
-  window.removeTagByIndex = (i) => { tags.splice(i, 1); renderEditTags(); };
+  window.removeTagByIndex = (i) => {
+    tags.splice(i, 1);
+    renderEditTags();
+  };
   if (!tagsInput) return;
   tagsInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -485,21 +485,20 @@ function initEditTagsHandling() {
         // dùng renderEditTags() sẵn có
         const tagsDisplay = document.getElementById("tagsDisplay");
         tagsDisplay.innerHTML = tags
-          .map((tag, index) => `
+          .map(
+            (tag, index) => `
             <span class="tag-chip">
               ${tag}
               <button type="button" class="tag-remove" onclick="removeTagByIndex(${index})">×</button>
-            </span>`
-          ).join("");
+            </span>`,
+          )
+          .join("");
       }
       tagsInput.value = "";
       tagsInput.focus();
     });
   }
-
 }
-
-
 
 async function submitEditVideoForm(videoId) {
   const form = document.getElementById("updateVideoForm");
@@ -540,6 +539,14 @@ async function submitEditVideoForm(videoId) {
       formData.set("thumbnailUrl", norm);
     }
     formData.delete("thumbnail");
+  }
+
+  // Normalize downloadLink nếu có
+  const dli = document.getElementById("downloadLink");
+  if (dli && dli.value.trim()) {
+    const nd = normalizeB2(dli.value.trim());
+    dli.value = nd;
+    formData.set("downloadLink", nd);
   }
 
   try {
@@ -899,10 +906,10 @@ function initDurationFormatting() {
 function initCategoryHandling() {
   const categorySelect = document.getElementById("category");
   const downloadLinkGroup = document.getElementById("downloadLinkGroup");
+  if (downloadLinkGroup) downloadLinkGroup.style.display = "block"; // luôn hiển thị
   if (categorySelect && downloadLinkGroup) {
-    categorySelect.addEventListener("change", (e) => {
-      downloadLinkGroup.style.display =
-        e.target.value === "japan" ? "block" : "none";
+    categorySelect.addEventListener("change", () => {
+      downloadLinkGroup.style.display = "block";
     });
   }
 }
@@ -950,7 +957,7 @@ function initTagsHandling() {
   }
   window.removeTagByIndex = removeTag;
 
-// Nút + Tag (mobile-friendly)
+  // Nút + Tag (mobile-friendly)
   const addTagBtn = document.getElementById("addTagBtn");
   if (addTagBtn) {
     addTagBtn.addEventListener("click", () => {
@@ -960,20 +967,20 @@ function initTagsHandling() {
         // dùng renderTags() sẵn có trong hàm
         const tagsDisplay = document.getElementById("tagsDisplay");
         tagsDisplay.innerHTML = tags
-          .map((tag, index) => `
+          .map(
+            (tag, index) => `
             <span class="tag-chip">
               ${tag}
               <button type="button" class="tag-remove" onclick="removeTagByIndex(${index})">×</button>
-            </span>`
-          ).join("");
+            </span>`,
+          )
+          .join("");
       }
       tagsInput.value = "";
       tagsInput.focus();
     });
   }
-
 }
-
 
 // Notes counter
 function initNotesCounter() {
@@ -1023,6 +1030,14 @@ async function submitVideoForm(saveAndNew = false) {
       formData.set("thumbnailUrl", norm);
     }
     formData.delete("thumbnail");
+  }
+
+  // Normalize downloadLink nếu có
+  const dlEl = document.getElementById("downloadLink");
+  if (dlEl && dlEl.value.trim()) {
+    const nd = normalizeB2(dlEl.value.trim());
+    dlEl.value = nd;
+    formData.set("downloadLink", nd);
   }
 
   try {
@@ -1159,8 +1174,8 @@ function showConfirmModal(title, message, onConfirm) {
 let reorderList = [];
 async function openReorderModal() {
   const res = await fetch("/api/admin/videos?limit=1000&sort=manual", {
-  credentials: "include",
-});
+    credentials: "include",
+  });
 
   if (!res.ok) {
     alert("Không tải được danh sách");

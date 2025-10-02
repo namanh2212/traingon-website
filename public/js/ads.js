@@ -19,7 +19,7 @@
 
   // ====== DÁN 2 SNIPPET cho TRANG VIDEO vào đây ======
   const VIDEO_SNIPPETS = [
-    `<script type="application/javascript">
+    /*`<script type="application/javascript">
     var ad_idzone = "5711248",
     ad_popup_fallback = false,
     ad_popup_force = true,
@@ -31,7 +31,7 @@
     ad_trigger_delay = 0,
     ad_capping_enabled = false; 
 </script>
-<script type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>`,
+<script type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>`,*/
   ];
 
   function inject(html) {

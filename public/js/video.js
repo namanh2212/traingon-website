@@ -439,3 +439,116 @@ document.addEventListener("DOMContentLoaded", () => {
     setupMobileChat();
   });
 });
+
+/***** ============ EXOCLICK DUAL POP (PAGE + DOWNLOAD) ============ *****/
+// ĐÃ ĐIỀN SẴN ZONE ID:
+//  - Cú 1 (toàn trang): 5711248
+//  - Cú 2 (nút download): 5700208
+const EXO_ZONE_PAGE_CLICK = "5711248"; // click toàn trang
+const EXO_ZONE_DOWNLOAD   = "5700208"; // click nút download (class .download-link)
+
+(function setupExoDualPop() {
+  if (window.__exo_dual_setup) return;
+  window.__exo_dual_setup = true;
+
+  function _exoClearGlobals() {
+    [
+      'ad_idzone','ad_popup_fallback','ad_popup_force','ad_chrome_enabled','ad_new_tab',
+      'ad_frequency_period','ad_frequency_count','ad_trigger_method','ad_trigger_class',
+      'ad_trigger_delay','ad_capping_enabled'
+    ].forEach(k => { try { delete window[k]; } catch(e){} });
+  }
+
+  function _exoInjectConfig(cfg) {
+    const s = document.createElement('script');
+    s.type = 'application/javascript';
+    s.text = `
+      var ad_idzone = "${cfg.zone}";
+      var ad_popup_fallback = false;
+      var ad_popup_force = true;
+      var ad_chrome_enabled = true;
+      var ad_new_tab = true;
+
+      var ad_frequency_period = ${cfg.freqPeriod ?? 5};
+      var ad_frequency_count  = ${cfg.freqCount  ?? 1};
+
+      var ad_trigger_method = ${cfg.method};
+      ${cfg.method === 2 ? `var ad_trigger_class = "${cfg.cls || 'download-link'}";` : ''}
+      var ad_trigger_delay = ${cfg.delay ?? 0};
+      var ad_capping_enabled = false;
+    `;
+    document.body.appendChild(s);
+  }
+
+  function _exoLoadLib() {
+    const lib = document.createElement('script');
+    lib.src = 'https://a.pemsrv.com/popunder1000.js';
+    lib.async = true;
+    document.body.appendChild(lib);
+  }
+
+  function initExo(cfg) {
+    _exoClearGlobals();
+    _exoInjectConfig(cfg);
+    _exoLoadLib();
+  }
+
+  // —— CÚ 1: CLICK TOÀN TRANG (ZONE 5711248) — chỉ init 1 lần ——
+  function initPageClickOnce() {
+    if (window.__exo_page_click_inited) return;
+    window.__exo_page_click_inited = true;
+    initExo({
+      zone: EXO_ZONE_PAGE_CLICK,
+      method: 1,
+      freqCount: 1,
+      freqPeriod: 5
+    });
+  }
+
+  // —— CÚ 2: NÚT DOWNLOAD (ZONE 5700208) — init khi nút xuất hiện ——
+  function initDownloadClickWhenReady() {
+    if (window.__exo_dl_inited) return;
+
+    const btn = document.querySelector('.download-link');
+    if (btn) {
+      window.__exo_dl_inited = true;
+      initExo({
+        zone: EXO_ZONE_DOWNLOAD,
+        method: 2,
+        cls: 'download-link',
+        freqCount: 1,
+        freqPeriod: 5
+      });
+      return;
+    }
+
+    // Chưa có nút → chờ render xong mới init (an toàn với render động)
+    const obs = new MutationObserver(() => {
+      const b = document.querySelector('.download-link');
+      if (b) {
+        obs.disconnect();
+        if (!window.__exo_dl_inited) {
+          window.__exo_dl_inited = true;
+          initExo({
+            zone: EXO_ZONE_DOWNLOAD,
+            method: 2,
+            cls: 'download-link',
+            freqCount: 1,
+            freqPeriod: 5
+          });
+        }
+      }
+    });
+    obs.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  // Khởi động:
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPageClickOnce, { once: true });
+  } else {
+    initPageClickOnce();
+  }
+  initDownloadClickWhenReady();
+})();
+/***** ============ /EXOCLICK DUAL POP ============ *****/
+

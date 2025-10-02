@@ -26,7 +26,7 @@
     ad_chrome_enabled = true,
     ad_new_tab = true,
     ad_frequency_period = 10,
-    ad_frequency_count = 1,
+    ad_frequency_count = 2,
     ad_trigger_method = 1,
     ad_trigger_delay = 0,
     ad_capping_enabled = false; 

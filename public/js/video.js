@@ -146,10 +146,11 @@ function renderVideoPlayer() {
     // Khởi tạo Plyr với bộ control gọn, đẹp
     const plyrOptions = {
   controls: [
-    'play-large','play','progress','current-time','duration','mute',
-    // bỏ 'mute','volume'
+    'play-large','play','progress','current-time','duration','mute',        
+    'fast-forward',
     'settings','pip','airplay','fullscreen'
   ],
+  seekTime: 10,            // tua 10s
   settings: ['quality', 'speed'],
   ratio: '16:9',
   muted: false,

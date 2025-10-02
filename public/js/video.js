@@ -104,71 +104,105 @@ function renderVideo() {
 }
 
 // Render video player
+// Thay thế toàn bộ hàm cũ bằng hàm mới này
 function renderVideoPlayer() {
   const wrap = document.getElementById("videoPlayer");
   const url = (currentVideo.embedUrls || [])[currentServerIndex] || "";
 
-  // Link file trực tiếp?
+  // Phát HLS hoặc file mp4/webm/ogg
   const isHls = /\.m3u8(\?|$)/i.test(url);
   const isFile = /\.(mp4|webm|ogg)(\?|$)/i.test(url);
 
-  // 1) File trực tiếp => dùng Video.js + IMA (VAST)
-  // 1) File trực tiếp => dùng HTML5 + HLS (không IMA)
-  if (isHls || isFile) {
-    wrap.innerHTML = `
+  // Tạo khung video
+  wrap.innerHTML = `
     <video id="html5player"
-      controls playsinline preload="metadata"
+      class="plyr__video-embed" 
+      playsinline controls preload="metadata"
       style="width:100%;height:100%;background:#000;border-radius:12px;object-fit:contain;">
     </video>
   `;
-    const el = document.getElementById("html5player");
-    // Ẩn nút download + tắt PiP + chặn menu chuột phải
-    el.setAttribute("controlsList", "nodownload");
-    el.addEventListener("contextmenu", (e) => e.preventDefault());
+  const el = document.getElementById("html5player");
+  el.setAttribute("controlsList", "nodownload");
+  el.addEventListener("contextmenu", (e) => e.preventDefault());
+
+  // 1) Nạp CSS Plyr nếu chưa có
+  if (!document.querySelector('link[data-plyr]')) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = "https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css";
+    link.setAttribute("data-plyr", "1");
+    document.head.appendChild(link);
+  }
+
+  // 2) Nạp JS Hls & Plyr (nếu chưa có)
+  const loadAll = Promise.all([
+    isHls ? loadScriptOnce("https://cdn.jsdelivr.net/npm/hls.js@latest", "Hls") : Promise.resolve(),
+    loadScriptOnce("https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.min.js", "Plyr"),
+  ]);
+
+  loadAll.then(() => {
+    let player;
+
+    // Khởi tạo Plyr với bộ control gọn, đẹp
+    const plyrOptions = {
+  controls: [
+    'play-large','play','progress','current-time','duration','mute',
+    // bỏ 'mute','volume'
+    'settings','pip','airplay','fullscreen'
+  ],
+  settings: ['quality', 'speed'],
+  ratio: '16:9',
+  muted: false,
+  volume: 1,                 // mặc định 100%
+  storage: { enabled: false } // không nhớ volume giữa các phiên
+};
+
+
     if (isHls) {
       if (window.Hls && window.Hls.isSupported()) {
         const hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(el);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          player = new Plyr(el, plyrOptions);
+        });
       } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
-        el.src = url; // Safari
+        // Safari
+        el.src = url;
+        player = new Plyr(el, plyrOptions);
       } else {
-        // nạp HLS động nếu thiếu
-        loadScriptOnce("https://cdn.jsdelivr.net/npm/hls.js@1", "Hls")
-          .then(() => {
-            if (window.Hls && window.Hls.isSupported()) {
-              const hls = new Hls();
-              hls.loadSource(url);
-              hls.attachMedia(el);
-            }
-          })
-          .catch(() => {
-            /* bỏ qua */
-          });
+        wrap.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;height:60vh;background:rgba(255,255,255,0.1);border-radius:16px;color:#a7a7b3;text-align:center;">
+            <div>
+              <div style="font-size:2rem;margin-bottom:1rem;">⚠️</div>
+              <div>Trình duyệt không hỗ trợ HLS</div>
+            </div>
+          </div>`;
       }
+    } else if (isFile) {
+      el.src = url;
+      player = new Plyr(el, plyrOptions);
     } else {
-      el.src = url; // mp4/webm/ogg
+      // Trường hợp là iframe/embed khác → nhúng trực tiếp
+      wrap.innerHTML = `
+        <div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;background:#000;">
+          <iframe src="${url}" allowfullscreen
+            style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;"></iframe>
+        </div>
+      `;
     }
-
-    return;
-  }
-
-  // 2) Còn lại: link hoster (mixdrop/streamtape) => giữ iframe như cũ
-  let iframeUrl = url;
-  if (url.includes("mixdrop.co/") && !url.includes("/e/")) {
-    const id = url.split("/").pop();
-    iframeUrl = `https://mixdrop.co/e/${id}`;
-  } else if (url.includes("streamtape.com/") && !url.includes("/e/")) {
-    const id = url.split("/").pop();
-    iframeUrl = `https://streamtape.com/e/${id}`;
-  }
-
-  wrap.innerHTML = `
-    <iframe src="${iframeUrl}"
-            width="100%" height="100%"
-            frameborder="0" scrolling="no" allowfullscreen></iframe>
-  `;
+  }).catch((e) => {
+    console.error("Init Plyr/HLS error:", e);
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:60vh;background:rgba(255,255,255,0.1);border-radius:16px;color:#a7a7b3;text-align:center;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:1rem;">❌</div>
+          <div>Không thể khởi tạo trình phát</div>
+        </div>
+      </div>`;
+  });
 }
+
 
 // Switch server
 function switchServer(index) {

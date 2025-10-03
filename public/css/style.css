@@ -1673,32 +1673,39 @@ body {
   margin-top: 1.25rem;
 }
 
-
 /* ==== Watermark traingon.top góc phải trên của player ==== */
-.player-shell { position: relative; } /* đảm bảo neo tuyệt đối */
+.player-shell {
+  position: relative;
+} /* đảm bảo neo tuyệt đối */
 
-.player-shell .tg-badge{
+.player-shell .tg-badge {
   position: absolute;
   top: 0px;
   right: 0px;
-  z-index: 4000;            /* cao hơn lớp video & UI player */
-  pointer-events: none;     /* không chặn click EXO overlay/controls */
-  background: #fff;         /* nền trắng che logo gốc */
-  color: #000;              /* chữ đen */
+  z-index: 4000; /* cao hơn lớp video & UI player */
+  pointer-events: none; /* không chặn click EXO overlay/controls */
+  background: #fff; /* nền trắng che logo gốc */
+  color: #000; /* chữ đen */
   font-weight: 700;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Arial,
+    sans-serif;
   font-size: clamp(11px, 1.1vw, 14px);
   line-height: 1;
   padding: 6px 10px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   opacity: 1;
 }
 
 /* Khi fullscreen (nếu container .player-shell vào fullscreen) */
 .player-shell:fullscreen .tg-badge,
 .player-shell:-webkit-full-screen .tg-badge,
-.player-shell:-moz-full-screen .tg-badge{
+.player-shell:-moz-full-screen .tg-badge {
   top: 14px;
   right: 14px;
   font-size: clamp(12px, 1.2vw, 16px);

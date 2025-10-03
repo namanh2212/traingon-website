@@ -19,8 +19,18 @@ function getStateFromURL() {
   const search = (p.get("search") || "").trim();
 
   let category = (p.get("category") || "all").toLowerCase();
-  if (!["all", "gaydar", "asian", "japan", "straight"].includes(category))
-    category = "all";
+  const allowed = [
+    "all",
+    "china",
+    "gaydar",
+    "vietnam",
+    "japan",
+    "western",
+    "magazine",
+    "other",
+    "straight", // bạn vẫn giữ
+  ];
+  if (!allowed.includes(category)) category = "all";
 
   let view = (p.get("view") || "none").toLowerCase();
   if (!["none", "highest", "lowest"].includes(view)) view = "none";

@@ -24,7 +24,6 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
-
 app.use(express.static("public"));
 
 app.use(cookieParser());
@@ -91,7 +90,7 @@ function requireAuth(req, res, next) {
 
 // Helper: tìm theo slug (slug tính từ title)
 function findBySlug(videos, slug) {
-  return videos.find(v => slugify(v.title || String(v.id)) === String(slug));
+  return videos.find((v) => slugify(v.title || String(v.id)) === String(slug));
 }
 
 // Resolve by slug OR id
@@ -102,7 +101,7 @@ app.get("/api/videos/resolve", async (req, res) => {
     let v = null;
 
     if (slug) v = findBySlug(videos, String(slug));
-    if (!v && id) v = videos.find(x => String(x.id) === String(id));
+    if (!v && id) v = videos.find((x) => String(x.id) === String(id));
 
     if (!v || v.published === false) {
       return res.status(404).json({ error: "Video not found" });
@@ -116,7 +115,6 @@ app.get("/api/videos/resolve", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
-
 
 // ===== Public APIs =====
 
@@ -509,44 +507,58 @@ app.get("/api/admin/videos/:id", requireAuth, async (req, res) => {
   }
 });
 
-app.post("/api/admin/videos", requireAuth, upload.single("thumbnail"), async (req, res) => {
-  try {
-    const videos = await readVideos();
-    const { title, embedUrls, thumbnailUrl, duration, category, tags, notes, downloadLink } = req.body;
+app.post(
+  "/api/admin/videos",
+  requireAuth,
+  upload.single("thumbnail"),
+  async (req, res) => {
+    try {
+      const videos = await readVideos();
+      const {
+        title,
+        embedUrls,
+        thumbnailUrl,
+        duration,
+        category,
+        tags,
+        notes,
+        downloadLink,
+      } = req.body;
 
-    // ⬅️ THÊM 1 ĐOẠN NGẮN NGAY Ở ĐÂY: tính max orderIndex hiện có
-    const maxOrderIndex = videos.reduce((m, v) => {
-      const oi = Number.isFinite(v?.orderIndex) ? v.orderIndex : -Infinity;
-      return oi > m ? oi : m;
-    }, -Infinity);
+      // ⬅️ THÊM 1 ĐOẠN NGẮN NGAY Ở ĐÂY: tính max orderIndex hiện có
+      const maxOrderIndex = videos.reduce((m, v) => {
+        const oi = Number.isFinite(v?.orderIndex) ? v.orderIndex : -Infinity;
+        return oi > m ? oi : m;
+      }, -Infinity);
 
-    const newVideo = {
-      id: Date.now().toString(),
-      title,
-      embedUrls: JSON.parse(embedUrls || "[]"),
-      thumbnail: req.file ? `/uploads/${req.file.filename}` : thumbnailUrl,
-      duration,
-      category: category || "none",
-      tags: JSON.parse(tags || "[]"),
-      notes: notes || "",
-      downloadLink: downloadLink || "",
-      views: 0,
-      published: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+      const newVideo = {
+        id: Date.now().toString(),
+        title,
+        embedUrls: JSON.parse(embedUrls || "[]"),
+        thumbnail: req.file ? `/uploads/${req.file.filename}` : thumbnailUrl,
+        duration,
+        category: category || "other",
+        tags: JSON.parse(tags || "[]"),
+        notes: notes || "",
+        downloadLink: downloadLink || "",
+        views: 0,
+        published: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    // ⬅️ THÊM 1 DÒNG NÀY: đẩy video mới lên TOP theo cơ chế sort hiện tại
-    if (Number.isFinite(maxOrderIndex)) newVideo.orderIndex = maxOrderIndex + 1;
+      // ⬅️ THÊM 1 DÒNG NÀY: đẩy video mới lên TOP theo cơ chế sort hiện tại
+      if (Number.isFinite(maxOrderIndex))
+        newVideo.orderIndex = maxOrderIndex + 1;
 
-    videos.unshift(newVideo);
-    await writeVideos(videos);
-    res.json(newVideo);
-  } catch (error) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
-
+      videos.unshift(newVideo);
+      await writeVideos(videos);
+      res.json(newVideo);
+    } catch (error) {
+      res.status(500).json({ error: "Server error" });
+    }
+  },
+);
 
 app.put(
   "/api/admin/videos/:id",
@@ -578,7 +590,7 @@ app.put(
           ? `/uploads/${req.file.filename}`
           : thumbnailUrl || videos[idx].thumbnail,
         duration,
-        category: category || "none",
+        category: category || "other",
         tags: JSON.parse(tags || "[]"),
         notes: notes || "",
         downloadLink: downloadLink || "",
@@ -631,7 +643,6 @@ app.get("/video/:slug", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "video.html"));
 });
 
-
 // Admin routes
 app.get("/admin", (req, res) => res.redirect("/admin/login.html"));
 app.get("/admin/", (req, res) => res.redirect("/admin/login.html"));
@@ -672,7 +683,6 @@ const siteOrigin = (req) => {
 
 // Trang SEO cho từng video: có <title> + JSON-LD, người dùng sẽ được redirect sang video.html
 // === SEO-first watch page: render full player (no JS redirect) ===
-
 
 // Sitemap tự sinh từ data/videos.json (bao gồm tất cả video cũ & mới)
 app.get("/sitemap.xml", async (req, res) => {

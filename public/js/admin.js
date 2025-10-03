@@ -349,7 +349,7 @@ function populateEditForm(video) {
 
   const categorySelect = document.getElementById("category");
   if (categorySelect) {
-    categorySelect.value = video.category || "none";
+    categorySelect.value = video.category || "other";
     const downloadLinkGroup = document.getElementById("downloadLinkGroup");
     if (downloadLinkGroup) downloadLinkGroup.style.display = "block"; // luôn hiển thị
   }
@@ -1103,13 +1103,16 @@ function formatDate(dateString) {
 }
 function getCategoryDisplay(category) {
   const categories = {
-    none: "None",
+    china: "China",
     gaydar: "Gaydar",
-    asian: "Asian",
+    vietnam: "Vietnam",
     japan: "Japan",
+    western: "Western",
+    magazine: "Magazine",
     straight: "Straight",
+    other: "Other",
   };
-  return categories[category] || "None";
+  return categories[category] || "Other";
 }
 function formatFileSize(bytes) {
   if (bytes === 0) return "0 Bytes";

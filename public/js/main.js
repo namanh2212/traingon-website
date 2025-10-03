@@ -504,7 +504,7 @@ function renderVideos(videos) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
-    a.href = "/watch/" + video.id + "/" + slug;
+    a.href = "/video/" + slug;
     a.innerHTML = `
       <div class="video-thumbnail">
         <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" decoding="async"

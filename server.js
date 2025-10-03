@@ -24,39 +24,6 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
-// Serve /video.html nhưng bỏ mọi meta robots và chèn canonical về /watch
-app.get("/video.html", async (req, res) => {
-  try {
-    const id = String(req.query.id || "");
-    let html = await fs.readFile(
-      path.join(__dirname, "public", "video.html"),
-      "utf8",
-    );
-    // Bỏ bất kỳ meta robots nào trong file gốc
-    html = html.replace(/<meta[^>]*name=['"]robots['"][^>]*>\s*/i, "");
-    if (id) {
-      const raw = await fs.readFile(DATA_FILE, "utf8");
-      const videos = JSON.parse(raw);
-      const v = videos.find((x) => String(x.id) === id);
-      const s = slugify(v?.title || id);
-      const canonical = `${siteOrigin(req)}/watch/${id}/${s}`;
-      if (v?.title) {
-        html = html.replace(
-          /<title>[\s\S]*?<\/title>/i,
-          `<title>${escapeHtml(v.title)} — Traingon</title>`,
-        );
-      }
-      html = html.replace(
-        "</head>",
-        `<link rel="canonical" href="${canonical}">\n</head>`,
-      );
-    }
-    res.status(200).send(html);
-  } catch (e) {
-    console.error(e);
-    res.sendFile(path.join(__dirname, "public", "video.html"));
-  }
-});
 
 app.use(express.static("public"));
 
@@ -121,6 +88,35 @@ function requireAuth(req, res, next) {
   if (req.cookies?.tg_admin === "1") return next();
   return res.status(401).json({ error: "Unauthorized" });
 }
+
+// Helper: tìm theo slug (slug tính từ title)
+function findBySlug(videos, slug) {
+  return videos.find(v => slugify(v.title || String(v.id)) === String(slug));
+}
+
+// Resolve by slug OR id
+app.get("/api/videos/resolve", async (req, res) => {
+  try {
+    const { slug, id } = req.query;
+    const videos = await readVideos();
+    let v = null;
+
+    if (slug) v = findBySlug(videos, String(slug));
+    if (!v && id) v = videos.find(x => String(x.id) === String(id));
+
+    if (!v || v.published === false) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+
+    // +1 view giống /api/videos/:id
+    v.views = (v.views || 0) + 1;
+    await writeVideos(videos);
+    res.json(v);
+  } catch (e) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 
 // ===== Public APIs =====
 
@@ -630,6 +626,12 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
+// Serve player page by pretty URL: /video/:slug
+app.get("/video/:slug", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "video.html"));
+});
+
+
 // Admin routes
 app.get("/admin", (req, res) => res.redirect("/admin/login.html"));
 app.get("/admin/", (req, res) => res.redirect("/admin/login.html"));
@@ -650,14 +652,7 @@ app.get("/admin/edit-video.html", (req, res) => {
 });
 
 // === [SEO] /watch/:id/:slug + /sitemap.xml (auto từ data/videos.json) ===
-const escapeHtml = (s) =>
-  String(s || "").replace(
-    /[&<>"']/g,
-    (m) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        m
-      ],
-  );
+// Helper: slug từ title
 const slugify = (s) =>
   String(s || "")
     .toLowerCase()
@@ -677,73 +672,7 @@ const siteOrigin = (req) => {
 
 // Trang SEO cho từng video: có <title> + JSON-LD, người dùng sẽ được redirect sang video.html
 // === SEO-first watch page: render full player (no JS redirect) ===
-app.get("/watch/:id/:slug?", async (req, res) => {
-  try {
-    const id = String(req.params.id);
-    const raw = await fs.readFile(DATA_FILE, "utf8");
-    const videos = JSON.parse(raw);
-    const v = videos.find((x) => String(x.id) === id);
-    if (!v) return res.status(404).send("Not found");
 
-    const origin = siteOrigin(req);
-    const s = slugify(v.title || id);
-    const canonical = `${origin}/watch/${id}/${s}`;
-    const thumb = v.thumbnail || "";
-    const uploadDate = (v.createdAt || "").slice(0, 10);
-
-    // Nạp template gốc public/video.html rồi “vá” <head>
-    let html = await fs.readFile(
-      path.join(__dirname, "public", "video.html"),
-      "utf8",
-    );
-    html = html.replace(/<meta[^>]*name=['"]robots['"][^>]*>\s*/i, ""); // bỏ noindex nếu còn
-    html = html.replace(
-      /<title>[\s\S]*?<\/title>/i,
-      `<title>${escapeHtml(v.title)} — Traingon</title>`,
-    );
-
-    const isoUpload = new Date(v.createdAt || Date.now()).toISOString(); // có múi giờ
-    const embedUrl = canonical; // xem ngay trên /watch
-    const contentUrl = v.downloadLink || ""; // nếu có link tải thì điền, không có thì để ""
-
-    const headInject = `
-<link rel="canonical" href="${canonical}">
-<meta property="og:type" content="video.other">
-<meta property="og:site_name" content="Traingon">
-<meta property="og:title" content="${escapeHtml(v.title)} — Traingon">
-<meta property="og:description" content="${escapeHtml(v.description || v.title || "Watch now")}">
-<meta property="og:url" content="${canonical}">
-<meta property="og:image" content="${thumb}">
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="${escapeHtml(v.title)} — Traingon">
-<meta name="twitter:description" content="${escapeHtml(v.description || v.title || "Watch now")}">
-<meta name="twitter:image" content="${thumb}">
-<script type="application/ld+json">${JSON.stringify({
-      "@context": "https://schema.org",
-      "@type": "VideoObject",
-      name: v.title,
-      description: v.description || v.title || "Watch video",
-      thumbnailUrl: v.thumbnail ? [v.thumbnail] : undefined,
-      uploadDate: isoUpload, // ISO 8601 có timezone
-      embedUrl: embedUrl, // >= 1 trong 2 trường
-      ...(contentUrl ? { contentUrl: contentUrl } : {}),
-      url: canonical,
-    })}</script>`;
-    html = html.replace("</head>", headInject + "\n</head>");
-
-    // Chèn H1 ẩn ngay đầu <body> (dùng regex để dù <body> có class/attr vẫn chèn được)
-    html = html.replace(
-      /<body([^>]*)>/i,
-      `<body$1><h1 style="position:absolute;left:-9999px;clip:rect(1px,1px,1px,1px);width:1px;height:1px;overflow:hidden;">${escapeHtml(v.title)}</h1>`,
-    );
-
-    res.set("Cache-Control", "public, max-age=3600");
-    res.status(200).send(html);
-  } catch (e) {
-    console.error(e);
-    res.redirect("/");
-  }
-});
 
 // Sitemap tự sinh từ data/videos.json (bao gồm tất cả video cũ & mới)
 app.get("/sitemap.xml", async (req, res) => {
@@ -775,7 +704,7 @@ app.get("/sitemap.xml", async (req, res) => {
         const s = slugify(v.title || v.id); // slugify đã khai báo ở trên
         const lastmod = fmt(v.updatedAt || v.createdAt);
         return `<url>
-  <loc>${origin}/watch/${v.id}/${s}</loc>
+  <loc>${origin}/video/${s}</loc>
   <changefreq>weekly</changefreq>
   ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
 </url>`;

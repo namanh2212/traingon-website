@@ -1,13 +1,16 @@
 let currentVideo = null;
 let currentServerIndex = 0;
 
-// Get video ID from URL
-// Hỗ trợ cả /watch/:id/:slug và /video.html?id=
-function getVideoId() {
-  const m = location.pathname.match(/^\/watch\/([^\/]+)/);
-  if (m) return m[1];
-  return new URLSearchParams(location.search).get("id");
-}
+// Get key from URL: prefer slug (/video/:slug), fallback id (/watch/:id or ?id=)
+ function getVideoKey() {
+   const qsId = new URLSearchParams(location.search).get("id");
+   if (qsId) return { id: qsId };
+   const mWatch = location.pathname.match(/^\/watch\/([^\/]+)/);
+   if (mWatch) return { id: mWatch[1] };
+   const mSlug = location.pathname.match(/^\/video\/([^\/?#]+)/i);
+   if (mSlug) return { slug: decodeURIComponent(mSlug[1]) };
+   return {};
+ }
 
 // Helper: nạp script 1 lần, trả promise resolve khi globalName có mặt
 function loadScriptOnce(src, globalName) {
@@ -34,15 +37,18 @@ function loadScriptOnce(src, globalName) {
 
 // Load video data
 async function loadVideo() {
-  const videoId = getVideoId();
-  if (!videoId) {
+  const key = getVideoKey();
+ if (!key.id && !key.slug) {
     window.location.href = "/";
     return;
   }
 
   try {
-    console.log("Loading video with ID:", videoId);
-    const response = await fetch(`/api/videos/${videoId}`);
+    console.log("Loading video with key:", key);
+   const url = key.slug
+     ? `/api/videos/resolve?slug=${encodeURIComponent(key.slug)}`
+     : `/api/videos/${encodeURIComponent(key.id)}`;
+   const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {
       throw new Error("Video not found");
     }
@@ -55,6 +61,9 @@ async function loadVideo() {
 
     // Render video
     renderVideo();
+
+    // SEO tags (chỉ gọi sau khi đã có currentVideo)
+   applySEO(currentVideo);
 
     // Load related videos
     loadRelatedVideos();
@@ -103,6 +112,123 @@ function renderVideo() {
   setupMobileChat();
 }
 
+// helper: thêm/ghi đè thẻ <meta>/<link> an toàn
+function upsertTag(selector, create) {
+  let el = document.querySelector(selector);
+  if (!el) { el = create(); document.head.appendChild(el); }
+  return el;
+}
+function absUrl(u) {
+  if (!u) return "";
+  try { return new URL(u, location.origin).href; } catch { return u; }
+}
+function isoDate(s) {
+  const d = s ? new Date(s) : null;
+  return d && !isNaN(d) ? d.toISOString() : undefined;
+}
+// PTmmSS / PTHHMMSS (nếu có duration giây)
+function isoDuration(sec) {
+  if (!sec || isNaN(sec)) return undefined;
+  const s = Math.floor(sec%60), m = Math.floor(sec/60)%60, h = Math.floor(sec/3600);
+  return `PT${h?h+'H':''}${m?m+'M':''}${s?s+'S':''}` || "PT0S";
+}
+
+function applySEO(v) {
+  if (!v) return;
+
+  // nguồn dữ liệu
+  const title   = v.title || "Video";
+  const desc    = (v.notes || v.description || v.title || "").toString().slice(0, 160);
+  const image   = absUrl(v.thumbnail || (v.images && v.images[0]));
+  const pageUrl = location.origin + location.pathname; // canonical /video/<slug>
+  const site    = "Traingon.top";
+  const locale  = "en_US"; // hoặc "vi_VN" nếu bạn muốn
+  const keywords = Array.isArray(v.tags) && v.tags.length ? v.tags.join(", ") : undefined;
+
+  // <title>
+  document.title = `${title} - ${site}`;
+
+  // description
+  upsertTag('meta[name="description"]', () => {
+    const m = document.createElement('meta'); m.setAttribute('name','description'); return m;
+  }).setAttribute('content', desc);
+
+  // keywords (không bắt buộc SEO, nhưng bạn muốn giống đối thủ)
+  if (keywords) {
+    upsertTag('meta[name="keywords"]', () => {
+      const m = document.createElement('meta'); m.setAttribute('name','keywords'); return m;
+    }).setAttribute('content', `${title}, ${keywords}, ${site.toLowerCase()}`);
+  }
+
+  // robots (cho preview tối đa)
+  upsertTag('meta[name="robots"]', () => {
+    const m = document.createElement('meta'); m.setAttribute('name','robots'); return m;
+  }).setAttribute('content','index, follow, max-snippet:-1, max-video-preview:-1, max-image-preview:large');
+
+  // canonical
+  upsertTag('link[rel="canonical"]', () => {
+    const l = document.createElement('link'); l.setAttribute('rel','canonical'); return l;
+  }).setAttribute('href', pageUrl);
+
+  // Open Graph
+  upsertTag('meta[property="og:type"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:type'); return m;})
+    .setAttribute('content','video.other');
+  upsertTag('meta[property="og:locale"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:locale'); return m;})
+    .setAttribute('content', locale);
+  upsertTag('meta[property="og:site_name"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:site_name'); return m;})
+    .setAttribute('content', site);
+  upsertTag('meta[property="og:title"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:title'); return m;})
+    .setAttribute('content', `${title} - ${site}`);
+  upsertTag('meta[property="og:description"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:description'); return m;})
+    .setAttribute('content', desc);
+  if (image) {
+    upsertTag('meta[property="og:image"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:image'); return m;})
+      .setAttribute('content', image);
+    upsertTag('meta[property="og:image:type"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:image:type'); return m;})
+      .setAttribute('content','image/jpeg');
+    upsertTag('meta[property="og:image:alt"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:image:alt'); return m;})
+      .setAttribute('content', `${title} - ${site}`);
+  }
+  upsertTag('meta[property="og:url"]', ()=>{const m=document.createElement('meta'); m.setAttribute('property','og:url'); return m;})
+    .setAttribute('content', pageUrl);
+
+  // Twitter
+  upsertTag('meta[name="twitter:card"]', ()=>{const m=document.createElement('meta'); m.setAttribute('name','twitter:card'); return m;})
+    .setAttribute('content','summary_large_image');
+  upsertTag('meta[name="twitter:title"]', ()=>{const m=document.createElement('meta'); m.setAttribute('name','twitter:title'); return m;})
+    .setAttribute('content', `${title} - ${site}`);
+  upsertTag('meta[name="twitter:description"]', ()=>{const m=document.createElement('meta'); m.setAttribute('name','twitter:description'); return m;})
+    .setAttribute('content', desc);
+  if (image) {
+    upsertTag('meta[name="twitter:image"]', ()=>{const m=document.createElement('meta'); m.setAttribute('name','twitter:image'); return m;})
+      .setAttribute('content', image);
+  }
+
+  // JSON-LD VideoObject
+  let ld = document.getElementById('ld-video');
+  if (!ld) { ld = document.createElement('script'); ld.type='application/ld+json'; ld.id='ld-video'; document.head.appendChild(ld); }
+  const ldObj = {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    "name": title,
+    "description": desc,
+    "thumbnailUrl": image ? image : undefined,
+    "uploadDate": isoDate(v.createdAt || v.updatedAt),
+    "duration": isoDuration(v.durationSeconds), // nếu có trường thời lượng (giây)
+    "contentUrl": v.embedUrls && v.embedUrls.length ? absUrl(v.embedUrls[0]) : undefined,
+    "url": pageUrl
+  };
+  // enrich thêm nếu có
+  if (Array.isArray(v.tags) && v.tags.length) ldObj.keywords = v.tags.join(", ");
+  if (typeof v.views === "number") ldObj.interactionStatistic = {
+    "@type": "InteractionCounter",
+    "interactionType": { "@type": "WatchAction" },
+    "userInteractionCount": v.views
+  };
+  ld.textContent = JSON.stringify(ldObj);
+}
+
+
 // Render video player
 // Thay thế toàn bộ hàm cũ bằng hàm mới này
 function renderVideoPlayer() {
@@ -116,7 +242,7 @@ function renderVideoPlayer() {
   // Tạo khung video
   wrap.innerHTML = `
     <video id="html5player"
-      class="plyr__video-embed" 
+      class="plyr" 
       playsinline controls preload="metadata"
       style="width:100%;height:100%;background:#000;border-radius:12px;object-fit:contain;">
     </video>
@@ -235,7 +361,7 @@ function renderVideoDetails() {
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
       </svg>
-      Tải xuống
+      Download
     </a>
   `
     : "";
@@ -319,9 +445,7 @@ async function loadRelatedVideos() {
     relatedGrid.innerHTML = relatedVideos
       .map(
         (video) => `
-            <a class="video-card related-video-card" href="/watch/${video.id}/${(
-              video.title || ""
-            )
+            <a class="video-card related-video-card" href="/video/${(video.title || "")
               .toLowerCase()
               .normalize("NFD")
               .replace(/[\u0300-\u036f]/g, "")
@@ -379,7 +503,7 @@ function navigateToVideo(videoId, title) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-  window.location.href = `/watch/${videoId}/${slug}`;
+  window.location.href = `/video/${slug}`;
 }
 
 // Setup mobile chat

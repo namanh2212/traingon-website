@@ -7,6 +7,9 @@ let currentSearch = "";
 let isLoading = false;
 let searchTimeout;
 
+const FALLBACK_THUMBNAIL_SRC =
+  "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%209%27%3E%3Crect%20width%3D%2716%27%20height%3D%279%27%20fill%3D%27%230f172a%27%2F%3E%3Cpath%20fill%3D%27%231f2937%27%20d%3D%27M0%200h16v9H0z%27%2F%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2714%27%20height%3D%277%27%20fill%3D%27none%27%20stroke%3D%27%23334155%27%20stroke-width%3D%27.5%27%2F%3E%3Cpath%20fill%3D%27%23475569%27%20d%3D%27M4.5%203.5l1.75%202.25%201.25-1.5%201.75%202.25h-7z%27%2F%3E%3Ccircle%20cx%3D%275.5%27%20cy%3D%273.5%27%20r%3D%27.75%27%20fill%3D%27%2364748b%27%2F%3E%3C%2Fsvg%3E";
+
 // Filters state
 let currentViewSort = "none"; // 'none' | 'highest' | 'lowest'
 let currentTimeFilter = "newest"; // 'newest' | '7d' | 'oldest'
@@ -515,10 +518,12 @@ function renderVideos(videos) {
       .replace(/(^-|-$)/g, "");
 
     a.href = "/video/" + slug;
+    const thumbSrc = video.thumbnail || FALLBACK_THUMBNAIL_SRC;
+
     a.innerHTML = `
       <div class="video-thumbnail">
-        <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" decoding="async"
-             width="1280" height="720" onerror="this.src='/images/placeholder.jpg'">
+        <img src="${thumbSrc}" alt="${video.title}" loading="lazy" decoding="async"
+             width="1280" height="720" onerror="this.onerror=null;this.src='${FALLBACK_THUMBNAIL_SRC}'">
         <div class="video-duration">${video.duration}</div>
       </div>
       <div class="video-info">

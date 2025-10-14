@@ -237,6 +237,41 @@ app.get("/api/videos/resolve", async (req, res) => {
   }
 });
 
+// Get videos by tag (public)
+app.get("/api/tags/:tag", async (req, res) => {
+  try {
+    const rawTag = String(req.params.tag ?? "").trim();
+    if (!rawTag) {
+      return res.status(400).json({ error: "Tag is required" });
+    }
+
+    const tagLower = rawTag.toLowerCase();
+    const videos = (await readVideos()).filter((v) => v.published !== false);
+
+    const matched = videos.filter((video) =>
+      Array.isArray(video.tags)
+        ? video.tags.some((tag) => String(tag).toLowerCase() === tagLower)
+        : false,
+    );
+
+    const payload = matched.map((v) => ({
+      id: v.id,
+      title: v.title,
+      thumbnail: v.thumbnail,
+      duration: v.duration,
+      views: v.views || 0,
+      category: v.category,
+      tags: v.tags || [],
+      createdAt: v.createdAt || null,
+    }));
+
+    res.json(payload);
+  } catch (error) {
+    console.error("Tag filter error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // ===== Public APIs =====
 
 // Get videos (public) - WITH ADVANCED SEARCH

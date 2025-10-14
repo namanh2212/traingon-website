@@ -1,5 +1,25 @@
 let currentVideo = null;
 let currentServerIndex = 0;
+let currentTagFilter = null;
+
+const tagResultsSection = document.getElementById("tagResultsSection");
+const tagResultsTitle = document.getElementById("tagResultsTitle");
+const tagResultsSubtitle = document.getElementById("tagResultsSubtitle");
+const tagResultsGrid = document.getElementById("tagResultsGrid");
+const tagResultsClose = document.getElementById("tagResultsClose");
+
+if (tagResultsClose) {
+  tagResultsClose.addEventListener("click", () => hideTagResults());
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 // Get key from URL: prefer slug (/video/:slug), fallback id (/watch/:id or ?id=)
 function getVideoKey() {
@@ -84,6 +104,8 @@ async function loadVideo() {
 // Render video
 function renderVideo() {
   if (!currentVideo) return;
+
+  hideTagResults({ clearActive: true });
 
   // Render server buttons if multiple servers
   if (currentVideo.embedUrls && currentVideo.embedUrls.length > 1) {
@@ -433,7 +455,14 @@ function renderVideoDetails() {
   const videoDetails = document.getElementById("videoDetails");
 
   const tags = currentVideo.tags
-    ? currentVideo.tags.map((tag) => `<span class="tag">${tag}</span>`).join("")
+    ? currentVideo.tags
+        .map(
+          (tag) =>
+            `<button type="button" class="tag" data-tag="${escapeHtml(
+              tag,
+            )}">${escapeHtml(tag)}</button>`,
+        )
+        .join("")
     : "";
 
   const dl = currentVideo.downloadLink;
@@ -479,6 +508,144 @@ function renderVideoDetails() {
     `;
 
   videoDetails.style.display = "block";
+  attachTagHandlers();
+}
+
+function attachTagHandlers() {
+  const tagsContainer = document.querySelector(".video-tags");
+  if (!tagsContainer) {
+    hideTagResults({ clearActive: true });
+    return;
+  }
+
+  const buttons = tagsContainer.querySelectorAll(".tag");
+  buttons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tag = btn.dataset.tag || btn.textContent.trim();
+      if (!tag) return;
+      if (
+        tag === currentTagFilter &&
+        tagResultsSection &&
+        tagResultsSection.style.display !== "none"
+      ) {
+        hideTagResults();
+        return;
+      }
+      showTagResults(tag);
+    });
+  });
+}
+
+function setActiveTagButton(tag) {
+  const buttons = document.querySelectorAll(".video-tags .tag");
+  buttons.forEach((btn) => {
+    btn.classList.toggle("active", Boolean(tag) && btn.dataset.tag === tag);
+  });
+}
+
+async function showTagResults(tag) {
+  if (!tagResultsSection || !tagResultsGrid || !tagResultsTitle) return;
+
+  currentTagFilter = tag;
+  setActiveTagButton(tag);
+
+  tagResultsSection.style.display = "block";
+  tagResultsTitle.textContent = `Videos tagged "${tag}"`;
+  if (tagResultsSubtitle)
+    tagResultsSubtitle.textContent = "Đang tải danh sách video...";
+  tagResultsGrid.innerHTML = `
+    <div class="tag-results-loading">
+      <span></span>
+      <p>Loading videos...</p>
+    </div>
+  `;
+
+  try {
+    const response = await fetch(`/api/tags/${encodeURIComponent(tag)}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const videos = await response.json();
+    const others = Array.isArray(videos)
+      ? videos.filter((v) => v.id !== currentVideo?.id)
+      : [];
+
+    if (!Array.isArray(videos) || videos.length === 0) {
+      tagResultsGrid.innerHTML =
+        '<div class="tag-results-empty">Không tìm thấy video nào cho tag này.</div>';
+      if (tagResultsSubtitle)
+        tagResultsSubtitle.textContent = "Không có video nào được gắn tag này.";
+    } else if (others.length === 0) {
+      tagResultsGrid.innerHTML =
+        '<div class="tag-results-empty">Chỉ có video hiện tại được gắn tag này. Hãy thêm video khác để mở rộng danh sách.</div>';
+      if (tagResultsSubtitle)
+        tagResultsSubtitle.textContent = "Chưa có video nào khác với tag này.";
+    } else {
+      tagResultsGrid.innerHTML = renderTagResultCards(others);
+      if (tagResultsSubtitle) {
+        const count = others.length;
+        tagResultsSubtitle.textContent =
+          count === 1
+            ? "Tìm thấy 1 video khác có tag này."
+            : `Tìm thấy ${count} video khác có tag này.`;
+      }
+    }
+
+    tagResultsSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (error) {
+    console.error("Tag results error:", error);
+    tagResultsGrid.innerHTML = `
+      <div class="tag-results-empty">
+        Không thể tải danh sách video. Vui lòng thử lại sau.
+      </div>
+    `;
+    if (tagResultsSubtitle)
+      tagResultsSubtitle.textContent = "Đã xảy ra lỗi khi tải video theo tag.";
+  }
+}
+
+function hideTagResults({ clearActive = true } = {}) {
+  if (tagResultsSection) {
+    tagResultsSection.style.display = "none";
+  }
+  if (tagResultsGrid) tagResultsGrid.innerHTML = "";
+  if (tagResultsTitle) tagResultsTitle.textContent = "";
+  if (tagResultsSubtitle) tagResultsSubtitle.textContent = "";
+  if (clearActive) setActiveTagButton(null);
+  currentTagFilter = null;
+}
+
+function renderTagResultCards(videos) {
+  return videos
+    .map((video) => {
+      const slug = slugifyTitle(video.title || video.id || "");
+      const href = slug
+        ? `/video/${slug}`
+        : `/watch/${encodeURIComponent(video.id)}`;
+      return `
+        <a class="video-card related-video-card" href="${href}">
+          <div class="video-thumbnail">
+            <img src="${video.thumbnail}" alt="${escapeHtml(
+        video.title,
+      )}" loading="lazy" onerror="this.src='/images/placeholder.jpg'">
+            <div class="video-duration">${escapeHtml(video.duration || "")}</div>
+          </div>
+          <div class="video-info">
+            <h3 class="video-title">${escapeHtml(video.title)}</h3>
+            <div class="video-meta">
+              <div class="video-views">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                </svg>
+                ${formatViews(video.views || 0)}
+              </div>
+            </div>
+          </div>
+        </a>
+      `;
+    })
+    .join("");
 }
 
 // Load related videos - SỬA LẠI HOÀN TOÀN
@@ -581,15 +748,19 @@ async function loadRelatedVideos() {
 }
 
 // Function to navigate to another video
-function navigateToVideo(videoId, title) {
-  const base = title || (currentVideo && currentVideo.title) || "";
-  const slug = base
+function slugifyTitle(title) {
+  return String(title || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-  window.location.href = `/video/${slug}`;
+}
+
+function navigateToVideo(videoId, title) {
+  const base = title || (currentVideo && currentVideo.title) || "";
+  const slug = slugifyTitle(base);
+  window.location.href = `/video/${slug || encodeURIComponent(videoId)}`;
 }
 
 // Setup mobile chat

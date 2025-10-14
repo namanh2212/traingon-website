@@ -135,6 +135,29 @@
               <!-- Content will be loaded by JS -->
             </div>
 
+            <section
+              id="tagResultsSection"
+              class="tag-results"
+              style="display: none"
+              aria-live="polite"
+            >
+              <div class="tag-results-header">
+                <div>
+                  <h2 id="tagResultsTitle" class="tag-results-title"></h2>
+                  <p id="tagResultsSubtitle" class="tag-results-subtitle"></p>
+                </div>
+                <button
+                  type="button"
+                  id="tagResultsClose"
+                  class="tag-results-close"
+                  aria-label="Đóng danh sách video theo tag"
+                >
+                  ✕
+                </button>
+              </div>
+              <div id="tagResultsGrid" class="video-grid"></div>
+            </section>
+
             <!-- Related Videos -->
             <div class="related-videos">
               <h2 class="related-title">Related videos</h2>
@@ -270,6 +293,6 @@
 
      THAY các script player như sau -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
-    <script src="/js/video.js?v=6"></script>
+    <script src="/js/video.js?v=7"></script>
   </body>
 </html>

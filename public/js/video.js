@@ -555,7 +555,7 @@ async function showTagResults(tag) {
   tagResultsSection.style.display = "block";
   tagResultsTitle.textContent = `Videos tagged "${tag}"`;
   if (tagResultsSubtitle)
-    tagResultsSubtitle.textContent = "Đang tải danh sách video...";
+    tagResultsSubtitle.textContent = "Loading matching videos...";
   tagResultsGrid.innerHTML = `
     <div class="tag-results-loading">
       <span></span>
@@ -576,22 +576,22 @@ async function showTagResults(tag) {
 
     if (!Array.isArray(videos) || videos.length === 0) {
       tagResultsGrid.innerHTML =
-        '<div class="tag-results-empty">Không tìm thấy video nào cho tag này.</div>';
+        '<div class="tag-results-empty">No videos were found for this tag.</div>';
       if (tagResultsSubtitle)
-        tagResultsSubtitle.textContent = "Không có video nào được gắn tag này.";
+        tagResultsSubtitle.textContent = "No videos currently use this tag.";
     } else if (others.length === 0) {
       tagResultsGrid.innerHTML =
-        '<div class="tag-results-empty">Chỉ có video hiện tại được gắn tag này. Hãy thêm video khác để mở rộng danh sách.</div>';
+        '<div class="tag-results-empty">Only the current video uses this tag. Add more videos to expand the list.</div>';
       if (tagResultsSubtitle)
-        tagResultsSubtitle.textContent = "Chưa có video nào khác với tag này.";
+        tagResultsSubtitle.textContent = "No other videos share this tag yet.";
     } else {
       tagResultsGrid.innerHTML = renderTagResultCards(others);
       if (tagResultsSubtitle) {
         const count = others.length;
         tagResultsSubtitle.textContent =
           count === 1
-            ? "Tìm thấy 1 video khác có tag này."
-            : `Tìm thấy ${count} video khác có tag này.`;
+            ? "Found 1 other video with this tag."
+            : `Found ${count} other videos with this tag.`;
       }
     }
 
@@ -600,11 +600,11 @@ async function showTagResults(tag) {
     console.error("Tag results error:", error);
     tagResultsGrid.innerHTML = `
       <div class="tag-results-empty">
-        Không thể tải danh sách video. Vui lòng thử lại sau.
+        Unable to load the video list. Please try again later.
       </div>
     `;
     if (tagResultsSubtitle)
-      tagResultsSubtitle.textContent = "Đã xảy ra lỗi khi tải video theo tag.";
+      tagResultsSubtitle.textContent = "An error occurred while loading tagged videos.";
   }
 }
 

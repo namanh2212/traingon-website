@@ -7,6 +7,15 @@ let currentSearch = "";
 let isLoading = false;
 let searchTimeout;
 
+const ANNOUNCEMENT_CHECK_INTERVAL = 15000;
+const ANNOUNCEMENT_REFRESH_INTERVAL = 5 * 60 * 1000;
+const announcementTickerState = {
+  items: [],
+  isLoading: false,
+  checkTimer: null,
+  refreshTimer: null,
+};
+
 const FALLBACK_THUMBNAIL_SRC =
   "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%209%27%3E%3Crect%20width%3D%2716%27%20height%3D%279%27%20fill%3D%27%230f172a%27%2F%3E%3Cpath%20fill%3D%27%231f2937%27%20d%3D%27M0%200h16v9H0z%27%2F%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2714%27%20height%3D%277%27%20fill%3D%27none%27%20stroke%3D%27%23334155%27%20stroke-width%3D%27.5%27%2F%3E%3Cpath%20fill%3D%27%23475569%27%20d%3D%27M4.5%203.5l1.75%202.25%201.25-1.5%201.75%202.25h-7z%27%2F%3E%3Ccircle%20cx%3D%275.5%27%20cy%3D%273.5%27%20r%3D%27.75%27%20fill%3D%27%2364748b%27%2F%3E%3C%2Fsvg%3E";
 
@@ -592,6 +601,171 @@ function goToPage(page) {
 window.clearSearch = clearSearch;
 window.goToPage = goToPage;
 
+async function loadAnnouncementsTicker() {
+  const bar = document.getElementById("announcementBar");
+  const track = document.getElementById("announcementTrack");
+  if (!bar || !track) return;
+
+  if (announcementTickerState.isLoading) return;
+  announcementTickerState.isLoading = true;
+
+  try {
+    const res = await fetch("/api/announcements");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const now = Date.now();
+
+    const items = (Array.isArray(data) ? data : [])
+      .map((item) => {
+        const expiresMs = new Date(item.expiresAt || item.expiredAt).getTime();
+        return {
+          id: item.id || item._id || `${expiresMs}-${Math.random().toString(36).slice(2, 8)}`,
+          message: String(item.message ?? ""),
+          createdAt: item.createdAt,
+          expiresAt: item.expiresAt,
+          expiresMs,
+        };
+      })
+      .filter((item) => Number.isFinite(item.expiresMs) && item.expiresMs > now);
+
+    announcementTickerState.items = items;
+    renderAnnouncementTicker();
+    setupAnnouncementTickerTimers();
+  } catch (error) {
+    console.error("Announcement ticker error:", error);
+    if (!announcementTickerState.items.length) {
+      bar.hidden = true;
+      clearAnnouncementTickerTimers();
+    }
+  } finally {
+    announcementTickerState.isLoading = false;
+  }
+}
+
+function renderAnnouncementTicker() {
+  const bar = document.getElementById("announcementBar");
+  const track = document.getElementById("announcementTrack");
+  if (!bar || !track) return;
+
+  track.innerHTML = "";
+  const items = announcementTickerState.items;
+  if (!Array.isArray(items) || !items.length) {
+    bar.hidden = true;
+    clearAnnouncementTickerTimers();
+    return;
+  }
+
+  const originals = items.map((item, index) => {
+    const el = document.createElement("div");
+    el.className = "announcement-item";
+    el.dataset.id = String(item.id || index);
+    el.appendChild(createAnnouncementFragment(item.message || ""));
+    return el;
+  });
+
+  originals.forEach((el) => track.appendChild(el));
+  originals.forEach((el) => track.appendChild(el.cloneNode(true)));
+
+  const totalChars = Math.max(
+    20,
+    items.reduce((sum, item) => sum + String(item.message || "").length, 0),
+  );
+  const duration = Math.max(28, Math.min(120, totalChars * 0.45));
+  track.style.setProperty("--announcement-duration", `${duration}s`);
+
+  bar.hidden = false;
+}
+
+function setupAnnouncementTickerTimers() {
+  clearAnnouncementTickerTimers();
+  if (!announcementTickerState.items.length) return;
+
+  announcementTickerState.checkTimer = setInterval(() => {
+    const now = Date.now();
+    const active = announcementTickerState.items.filter(
+      (item) => item.expiresMs && item.expiresMs > now,
+    );
+    if (active.length !== announcementTickerState.items.length) {
+      announcementTickerState.items = active;
+      renderAnnouncementTicker();
+      if (!active.length) {
+        clearAnnouncementTickerTimers();
+      }
+    }
+  }, ANNOUNCEMENT_CHECK_INTERVAL);
+
+  announcementTickerState.refreshTimer = setInterval(() => {
+    loadAnnouncementsTicker();
+  }, ANNOUNCEMENT_REFRESH_INTERVAL);
+}
+
+function clearAnnouncementTickerTimers() {
+  if (announcementTickerState.checkTimer) {
+    clearInterval(announcementTickerState.checkTimer);
+    announcementTickerState.checkTimer = null;
+  }
+  if (announcementTickerState.refreshTimer) {
+    clearInterval(announcementTickerState.refreshTimer);
+    announcementTickerState.refreshTimer = null;
+  }
+}
+
+function createAnnouncementFragment(text) {
+  const fragment = document.createDocumentFragment();
+  const normalized = String(text ?? "").replace(/\r?\n/g, " ");
+  if (!normalized) {
+    fragment.appendChild(document.createTextNode(""));
+    return fragment;
+  }
+
+  const linkPattern =
+    /((?:https?:\/\/)?(?:[\w-]+\.)+[\w-]{2,}(?:\/[\w\d\-._~:/?#[\]@!$&'()*+,;=%]*)?)/gi;
+  let lastIndex = 0;
+  let match;
+  while ((match = linkPattern.exec(normalized)) !== null) {
+    const start = match.index;
+    const raw = match[0];
+    if (start > lastIndex) {
+      fragment.appendChild(
+        document.createTextNode(normalized.slice(lastIndex, start)),
+      );
+    }
+
+    let url = raw;
+    let trailing = "";
+    const trailingMatch = url.match(/[),.;!?]+$/);
+    if (trailingMatch) {
+      trailing = trailingMatch[0];
+      url = url.slice(0, -trailing.length);
+    }
+
+    if (url) {
+      const hasProtocol = /^https?:\/\//i.test(url);
+      const href = hasProtocol ? url : `https://${url}`;
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.textContent = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.className = "announcement-link";
+      fragment.appendChild(anchor);
+    } else {
+      fragment.appendChild(document.createTextNode(raw));
+    }
+
+    if (trailing) {
+      fragment.appendChild(document.createTextNode(trailing));
+    }
+    lastIndex = match.index + raw.length;
+  }
+
+  if (lastIndex < normalized.length) {
+    fragment.appendChild(document.createTextNode(normalized.slice(lastIndex)));
+  }
+
+  return fragment;
+}
+
 // =======================
 // Floating Chat (home)
 // =======================
@@ -673,6 +847,7 @@ document.addEventListener("DOMContentLoaded", () => {
   updateURL(false);
 
   initFiltersUI();
+  loadAnnouncementsTicker();
   markActiveNav();
 
   generateSkeleton();

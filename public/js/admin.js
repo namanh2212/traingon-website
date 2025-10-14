@@ -5,6 +5,8 @@ let currentCategory = "";
 let currentSort = "newest";
 let isLoading = false;
 let tags = [];
+let adminAnnouncements = [];
+let adminAnnouncementTimer = null;
 
 // Initialize dashboard - CHỈ CHO TRANG DASHBOARD
 function initDashboard() {
@@ -54,8 +56,296 @@ function initDashboard() {
     });
   }
 
+  initAnnouncementManager();
   // Initial
   loadVideos();
+}
+
+function initAnnouncementManager() {
+  const form = document.getElementById("announcementForm");
+  const list = document.getElementById("announcementList");
+  if (!form || !list) return;
+
+  const messageInput = document.getElementById("announcementMessage");
+  const durationInput = document.getElementById("announcementDuration");
+  const unitSelect = document.getElementById("announcementUnit");
+  const submitBtn = form.querySelector(".send-announcement");
+
+  const setSubmitting = (state) => {
+    if (!submitBtn) return;
+    if (state) {
+      submitBtn.setAttribute("disabled", "true");
+      submitBtn.classList.add("is-loading");
+    } else {
+      submitBtn.removeAttribute("disabled");
+      submitBtn.classList.remove("is-loading");
+    }
+  };
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const message = (messageInput?.value || "").trim();
+    const durationValue = Number(durationInput?.value);
+    const durationUnit = unitSelect?.value || "hours";
+
+    if (!message) {
+      if (typeof showToast === "function")
+        showToast("Vui lòng nhập nội dung thông báo", "error");
+      else alert("Vui lòng nhập nội dung thông báo");
+      return;
+    }
+
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+      if (typeof showToast === "function")
+        showToast("Thời gian hiển thị phải lớn hơn 0", "error");
+      else alert("Thời gian hiển thị phải lớn hơn 0");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/announcements", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message, durationValue, durationUnit }),
+      });
+
+      if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        const errMessage =
+          payload?.error || "Gửi thông báo thất bại. Vui lòng thử lại.";
+        if (typeof showToast === "function") showToast(errMessage, "error");
+        else alert(errMessage);
+        return;
+      }
+
+      if (typeof showToast === "function")
+        showToast("Đã gửi thông báo", "success");
+      form.reset();
+      if (durationInput) durationInput.value = "12";
+      await loadAdminAnnouncements();
+    } catch (error) {
+      console.error("Submit announcement error:", error);
+      if (typeof showToast === "function")
+        showToast("Không thể gửi thông báo", "error");
+      else alert("Không thể gửi thông báo");
+    } finally {
+      setSubmitting(false);
+    }
+  });
+
+  loadAdminAnnouncements();
+}
+
+async function loadAdminAnnouncements() {
+  const list = document.getElementById("announcementList");
+  if (!list) return;
+
+  try {
+    const res = await fetch("/api/admin/announcements", {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    adminAnnouncements = Array.isArray(data) ? data : [];
+    renderAdminAnnouncements();
+  } catch (error) {
+    console.error("Load admin announcements error:", error);
+    stopAdminAnnouncementCountdown();
+    if (!list.children.length) {
+      const msg = document.createElement("div");
+      msg.className = "announcement-empty";
+      msg.textContent = "Không thể tải danh sách thông báo.";
+      list.appendChild(msg);
+    }
+  }
+}
+
+function renderAdminAnnouncements() {
+  const list = document.getElementById("announcementList");
+  if (!list) return;
+
+  stopAdminAnnouncementCountdown();
+  list.innerHTML = "";
+
+  if (!adminAnnouncements.length) {
+    const empty = document.createElement("div");
+    empty.className = "announcement-empty";
+    empty.textContent = "Chưa có thông báo nào.";
+    list.appendChild(empty);
+    return;
+  }
+
+  const now = Date.now();
+  adminAnnouncements.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "announcement-card";
+    card.dataset.id = String(item.id || "");
+
+    const messageEl = document.createElement("div");
+    messageEl.className = "announcement-card-message";
+    messageEl.appendChild(buildAnnouncementMessageFragment(item.message || ""));
+    card.appendChild(messageEl);
+
+    const meta = document.createElement("div");
+    meta.className = "announcement-card-meta";
+
+    const expiresAt = new Date(item.expiresAt || item.expiredAt || item.expired_at);
+    const expiresMs = expiresAt.getTime();
+
+    const countdownWrap = document.createElement("span");
+    countdownWrap.className = "announcement-meta-item";
+    const countdownLabel = document.createElement("span");
+    countdownLabel.textContent = "⏳ Còn lại:";
+    const countdownValue = document.createElement("strong");
+    countdownValue.className = "announcement-countdown";
+    countdownValue.dataset.expiresAt = String(expiresMs);
+    countdownValue.textContent = formatAnnouncementCountdown(expiresMs - now);
+    countdownWrap.append(countdownLabel, countdownValue);
+
+    const createdWrap = document.createElement("span");
+    createdWrap.className = "announcement-meta-item";
+    const createdLabel = document.createElement("span");
+    createdLabel.textContent = "🕒 Tạo lúc:";
+    const createdValue = document.createElement("strong");
+    createdValue.textContent = formatAnnouncementDateTime(item.createdAt);
+    createdWrap.append(createdLabel, createdValue);
+
+    meta.append(countdownWrap, createdWrap);
+    card.appendChild(meta);
+
+    list.appendChild(card);
+  });
+
+  startAdminAnnouncementCountdown();
+}
+
+function buildAnnouncementMessageFragment(text) {
+  const fragment = document.createDocumentFragment();
+  const normalized = String(text ?? "").replace(/\r?\n/g, " ");
+  if (!normalized) {
+    fragment.appendChild(document.createTextNode(""));
+    return fragment;
+  }
+
+  const linkPattern =
+    /((?:https?:\/\/)?(?:[\w-]+\.)+[\w-]{2,}(?:\/[\w\d\-._~:/?#[\]@!$&'()*+,;=%]*)?)/gi;
+  let lastIndex = 0;
+  let match;
+  while ((match = linkPattern.exec(normalized)) !== null) {
+    const start = match.index;
+    const raw = match[0];
+    if (start > lastIndex) {
+      fragment.appendChild(
+        document.createTextNode(normalized.slice(lastIndex, start)),
+      );
+    }
+
+    let url = raw;
+    let trailing = "";
+    const trailingMatch = url.match(/[),.;!?]+$/);
+    if (trailingMatch) {
+      trailing = trailingMatch[0];
+      url = url.slice(0, -trailing.length);
+    }
+
+    if (url) {
+      const hasProtocol = /^https?:\/\//i.test(url);
+      const href = hasProtocol ? url : `https://${url}`;
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.textContent = url;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.className = "announcement-link";
+      fragment.appendChild(anchor);
+    } else {
+      fragment.appendChild(document.createTextNode(raw));
+    }
+
+    if (trailing) {
+      fragment.appendChild(document.createTextNode(trailing));
+    }
+    lastIndex = match.index + raw.length;
+  }
+
+  if (lastIndex < normalized.length) {
+    fragment.appendChild(document.createTextNode(normalized.slice(lastIndex)));
+  }
+
+  return fragment;
+}
+
+function startAdminAnnouncementCountdown() {
+  stopAdminAnnouncementCountdown();
+  if (!adminAnnouncements.length) return;
+
+  adminAnnouncementTimer = setInterval(() => {
+    const now = Date.now();
+    let changed = false;
+
+    document.querySelectorAll(".announcement-card").forEach((card) => {
+      const countdown = card.querySelector(".announcement-countdown");
+      if (!countdown) return;
+      const expiresMs = Number(countdown.dataset.expiresAt);
+      if (!Number.isFinite(expiresMs)) return;
+
+      const diff = expiresMs - now;
+      if (diff <= 0) {
+        const id = card.dataset.id;
+        card.remove();
+        if (id) {
+          adminAnnouncements = adminAnnouncements.filter(
+            (item) => String(item.id) !== String(id),
+          );
+        }
+        changed = true;
+      } else {
+        countdown.textContent = formatAnnouncementCountdown(diff);
+      }
+    });
+
+    if (changed && adminAnnouncements.length === 0) {
+      stopAdminAnnouncementCountdown();
+      const list = document.getElementById("announcementList");
+      if (list) {
+        list.innerHTML = "";
+        const empty = document.createElement("div");
+        empty.className = "announcement-empty";
+        empty.textContent = "Chưa có thông báo nào.";
+        list.appendChild(empty);
+      }
+    }
+  }, 1000);
+}
+
+function stopAdminAnnouncementCountdown() {
+  if (adminAnnouncementTimer) {
+    clearInterval(adminAnnouncementTimer);
+    adminAnnouncementTimer = null;
+  }
+}
+
+function formatAnnouncementCountdown(diffMs) {
+  if (!Number.isFinite(diffMs) || diffMs <= 0) return "00:00";
+  const totalSeconds = Math.max(0, Math.floor(diffMs / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  const pad = (n) => n.toString().padStart(2, "0");
+  if (days > 0) {
+    return `${days}d ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+}
+
+function formatAnnouncementDateTime(value) {
+  const date = value ? new Date(value) : null;
+  if (!date || Number.isNaN(date.getTime())) return "--";
+  return date.toLocaleString("vi-VN", { hour12: false });
 }
 
 // ==== B2 AUTO-NORMALIZE (friendly endpoint -> cần /file/) ====

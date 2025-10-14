@@ -7,6 +7,7 @@ const multer = require("multer");
 const bcrypt = require("bcrypt");
 const compression = require("compression");
 const helmet = require("helmet");
+const { randomUUID } = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -45,9 +46,53 @@ const upload = multer({ storage });
 // Database paths & helpers
 const DB_PATH = path.join(__dirname, "data", "videos.db");
 const JSON_DATA_FILE = path.join(__dirname, "data", "videos.json");
+const ANNOUNCEMENTS_FILE = path.join(__dirname, "data", "announcements.json");
 
 let dbInstance = null;
 let dbInitPromise = null;
+
+async function writeAnnouncements(announcements) {
+  await fs.mkdir(path.dirname(ANNOUNCEMENTS_FILE), { recursive: true });
+  await fs.writeFile(
+    ANNOUNCEMENTS_FILE,
+    JSON.stringify(announcements, null, 2),
+    "utf8",
+  );
+}
+
+async function readAnnouncements() {
+  let parsed = [];
+  try {
+    const raw = await fs.readFile(ANNOUNCEMENTS_FILE, "utf8");
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) parsed = data;
+  } catch (err) {
+    if (err?.code !== "ENOENT") {
+      console.error("Read announcements error:", err);
+    }
+  }
+
+  const now = Date.now();
+  const active = parsed.filter((item) => {
+    if (!item || typeof item !== "object") return false;
+    const expiresAt = new Date(item.expiresAt || item.expiredAt || item.expired_at);
+    return Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() > now;
+  });
+
+  if (active.length !== parsed.length) {
+    try {
+      await writeAnnouncements(active);
+    } catch (err) {
+      console.error("Purge announcements error:", err);
+    }
+  }
+
+  return active.sort((a, b) => {
+    const aTime = new Date(a.createdAt || 0).getTime();
+    const bTime = new Date(b.createdAt || 0).getTime();
+    return bTime - aTime;
+  });
+}
 
 async function ensureDatabase() {
   if (dbInstance) return dbInstance;
@@ -547,6 +592,82 @@ app.post("/api/auth/logout", (req, res) => {
 
 app.get("/api/auth/me", (req, res) => {
   res.json({ ok: req.cookies?.tg_admin === "1" });
+});
+
+app.get("/api/admin/announcements", requireAuth, async (req, res) => {
+  try {
+    const announcements = await readAnnouncements();
+    res.json(announcements);
+  } catch (err) {
+    console.error("Load announcements error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.post("/api/admin/announcements", requireAuth, async (req, res) => {
+  try {
+    const message = String(req.body?.message ?? "").trim();
+    const durationValue = Number(req.body?.durationValue ?? req.body?.duration ?? 0);
+    const unitRaw = String(req.body?.durationUnit ?? req.body?.unit ?? "hours").toLowerCase();
+    const unit = unitRaw === "days" || unitRaw === "day" ? "days" : "hours";
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+    if (message.length > 500) {
+      return res.status(400).json({ error: "Message is too long" });
+    }
+    if (!Number.isFinite(durationValue) || durationValue <= 0) {
+      return res.status(400).json({ error: "Duration must be a positive number" });
+    }
+
+    const hours = unit === "days" ? durationValue * 24 : durationValue;
+    if (!Number.isFinite(hours) || hours <= 0) {
+      return res.status(400).json({ error: "Invalid duration" });
+    }
+    const maxHours = 24 * 365; // tối đa 1 năm
+    if (hours > maxHours) {
+      return res.status(400).json({ error: "Duration is too long" });
+    }
+
+    const durationMs = Math.round(hours * 3600 * 1000);
+    const now = Date.now();
+    const createdAt = new Date(now).toISOString();
+    const expiresAt = new Date(now + durationMs).toISOString();
+
+    const existing = await readAnnouncements();
+    const newAnnouncement = {
+      id: randomUUID(),
+      message,
+      createdAt,
+      expiresAt,
+    };
+
+    const next = [newAnnouncement, ...existing].slice(0, 50);
+    await writeAnnouncements(next);
+
+    res.status(201).json(newAnnouncement);
+  } catch (err) {
+    console.error("Create announcement error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.get("/api/announcements", async (req, res) => {
+  try {
+    const announcements = await readAnnouncements();
+    res.json(
+      announcements.map((item) => ({
+        id: item.id,
+        message: String(item.message ?? ""),
+        createdAt: item.createdAt,
+        expiresAt: item.expiresAt,
+      })),
+    );
+  } catch (err) {
+    console.error("Public announcements error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
 });
 
 // ===== Admin APIs (bảo vệ bởi requireAuth) =====

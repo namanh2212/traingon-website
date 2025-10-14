@@ -789,6 +789,224 @@ app.patch("/api/admin/videos/:id/toggle", requireAuth, async (req, res) => {
   }
 });
 
+app.get("/tag/:slug", async (req, res) => {
+  try {
+    const slug = String(req.params.slug || "").trim().toLowerCase();
+    if (!slug) {
+      return res.redirect(302, "/");
+    }
+
+    const origin = siteOrigin(req);
+    const videos = await readVideos();
+    const published = videos.filter((v) => v && v.id && v.published !== false);
+
+    const matches = [];
+    for (const video of published) {
+      if (!Array.isArray(video.tags)) continue;
+      for (const tag of video.tags) {
+        const tagSlug = slugify(tag);
+        if (tagSlug === slug) {
+          matches.push({ video, tag });
+          break;
+        }
+      }
+    }
+
+    if (!matches.length) {
+      const notFoundHtml = `<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Không tìm thấy tag - Traingon.top</title>
+    <link rel="stylesheet" href="/css/style.css?v=4" />
+    <style>
+      body { display: flex; min-height: 100vh; align-items: center; justify-content: center; background: #0f0f17; color: #fff; }
+      .not-found { text-align: center; padding: 2rem; }
+      .not-found a { color: #ff7ac3; text-decoration: none; }
+      .not-found a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <div class="not-found">
+      <h1>Tag không tồn tại</h1>
+      <p>Chúng tôi không tìm thấy trang bạn yêu cầu.</p>
+      <p><a href="/">Quay lại trang chủ Traingon.top</a></p>
+    </div>
+  </body>
+</html>`;
+      res.status(404).type("text/html").send(notFoundHtml);
+      return;
+    }
+
+    const tagName = matches[0].tag;
+    const canonicalUrl = `${origin}/tag/${slug}`;
+    const count = matches.length;
+    const latestTs = matches.reduce((max, { video }) => {
+      const t = Date.parse(video.updatedAt || video.createdAt || "");
+      return isNaN(t) ? max : Math.max(max, t);
+    }, 0);
+    const latestDateIso = latestTs ? new Date(latestTs).toISOString() : "";
+    const latestDateDisplay = latestDateIso ? formatDateHuman(latestDateIso) : "";
+    const description = `Khám phá ${count} video tag "${tagName}" trên Traingon.top${
+      latestDateDisplay ? `, cập nhật gần nhất ngày ${latestDateDisplay}` : ""
+    }.`;
+
+    const cardsHtml = matches
+      .map(({ video }) => {
+        const videoSlug =
+          slugify(video.title || video.id) || slugify(video.id) || String(video.id || "");
+        const href = `/video/${videoSlug}`;
+        const thumb =
+          typeof video.thumbnail === "string" && video.thumbnail
+            ? video.thumbnail
+            : "/images/placeholder.jpg";
+        const duration = video.duration
+          ? `<div class="video-duration">${escapeHtml(video.duration)}</div>`
+          : "";
+        const views = escapeHtml(formatViewsCompact(video.views));
+        const createdAt = formatDateHuman(video.createdAt || video.updatedAt);
+        const dateHtml = createdAt
+          ? `<div class="video-date">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7 10h5v5H7z" />
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-1.99.9-1.99 2L3 20c0 1.1.89 2 1.99 2H19c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z" />
+              </svg>
+              ${escapeHtml(createdAt)}
+            </div>`
+          : "";
+        return `<a class="video-card" href="${href}">
+  <div class="video-thumbnail">
+    <img src="${escapeHtml(thumb)}" alt="${escapeHtml(
+          video.title || video.id,
+        )}" loading="lazy" decoding="async" onerror="this.src='/images/placeholder.jpg'">
+    ${duration}
+  </div>
+  <div class="video-info">
+    <h3 class="video-title">${escapeHtml(video.title || "Video không tiêu đề")}</h3>
+    <div class="video-meta">
+      <div class="video-views">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+        </svg>
+        ${views}
+      </div>
+      ${dateHtml}
+    </div>
+  </div>
+</a>`;
+      })
+      .join("\n");
+
+    const primaryImageEntry = matches.find(
+      ({ video }) => typeof video.thumbnail === "string" && video.thumbnail,
+    );
+    const primaryImage = primaryImageEntry
+      ? primaryImageEntry.video.thumbnail.startsWith("http")
+        ? primaryImageEntry.video.thumbnail
+        : `${origin}${primaryImageEntry.video.thumbnail}`
+      : `${origin}/favicon.png`;
+
+    const ldJson = {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: `Video tag: ${tagName}`,
+      description,
+      url: canonicalUrl,
+      about: tagName,
+      mainEntity: matches.slice(0, 50).map(({ video }) => {
+        const videoSlug =
+          slugify(video.title || video.id) || slugify(video.id) || String(video.id || "");
+        const videoUrl = `${origin}/video/${videoSlug}`;
+        const uploadDate = video.createdAt || video.updatedAt || null;
+        const thumbnailUrl =
+          typeof video.thumbnail === "string" && video.thumbnail
+            ? video.thumbnail.startsWith("http")
+              ? video.thumbnail
+              : `${origin}${video.thumbnail}`
+            : undefined;
+        return {
+          "@type": "VideoObject",
+          name: video.title || video.id || "Video",
+          url: videoUrl,
+          thumbnailUrl,
+          uploadDate: uploadDate ? new Date(uploadDate).toISOString() : undefined,
+          interactionStatistic: {
+            "@type": "InteractionCounter",
+            interactionType: "https://schema.org/WatchAction",
+            userInteractionCount: Number(video.views) || 0,
+          },
+        };
+      }),
+    };
+
+    const ldJsonSafe = JSON.stringify(ldJson).replace(/</g, "\\u003c");
+
+    const html = `<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video tag ${escapeHtml(tagName)} - Traingon.top</title>
+    <meta name="description" content="${escapeHtml(description)}" />
+    <link rel="canonical" href="${canonicalUrl}" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Video tag ${escapeHtml(tagName)} - Traingon.top" />
+    <meta property="og:description" content="${escapeHtml(description)}" />
+    <meta property="og:url" content="${canonicalUrl}" />
+    <meta property="og:image" content="${escapeHtml(primaryImage)}" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Video tag ${escapeHtml(tagName)} - Traingon.top" />
+    <meta name="twitter:description" content="${escapeHtml(description)}" />
+    <meta name="twitter:image" content="${escapeHtml(primaryImage)}" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="stylesheet" href="/css/style.css?v=4" />
+    <style>
+      .tag-page-header { background: rgba(15, 15, 23, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+      .tag-page-title { font-size: 2rem; margin-bottom: 0.5rem; color: #fff; }
+      .tag-page-subtitle { color: #c8c8d3; margin-bottom: 1.5rem; }
+      .tag-breadcrumbs { font-size: 0.9rem; margin-bottom: 1rem; color: #a7a7b3; }
+      .tag-breadcrumbs a { color: #ff7ac3; text-decoration: none; }
+      .tag-breadcrumbs a:hover { text-decoration: underline; }
+      .video-meta { display: flex; gap: 0.75rem; align-items: center; }
+      .video-date { display: flex; align-items: center; gap: 0.35rem; color: #a7a7b3; font-size: 0.85rem; }
+    </style>
+    <script type="application/ld+json">${ldJsonSafe}</script>
+  </head>
+  <body>
+    <header class="header tag-page-header">
+      <div class="container">
+        <div class="header-content">
+          <a href="/" class="logo" style="text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.5rem;">
+            <span class="logo-badge">T</span>
+            <span class="logo-text">Traingon.top</span>
+          </a>
+        </div>
+      </div>
+    </header>
+    <main class="main">
+      <div class="container">
+        <div class="tag-breadcrumbs"><a href="/">Trang chủ</a> &rsaquo; Tag: ${escapeHtml(
+          tagName,
+        )}</div>
+        <h1 class="tag-page-title">Video tag "${escapeHtml(tagName)}"</h1>
+        <p class="tag-page-subtitle">${escapeHtml(description)}</p>
+        <div class="video-grid">
+          ${cardsHtml}
+        </div>
+      </div>
+    </main>
+  </body>
+</html>`;
+
+    res.set("Cache-Control", "public, max-age=600");
+    res.type("text/html").send(html);
+  } catch (error) {
+    console.error("Tag page error:", error);
+    res.status(500).type("text/plain").send("Server error");
+  }
+});
+
 // Routes
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
@@ -819,7 +1037,7 @@ app.get("/admin/edit-video.html", (req, res) => {
 });
 
 // === [SEO] /watch/:id/:slug + /sitemap.xml (auto từ data/videos.json) ===
-// Helper: slug từ title
+// Helper: slug từ title/tag
 const slugify = (s) =>
   String(s || "")
     .toLowerCase()
@@ -827,6 +1045,36 @@ const slugify = (s) =>
     .replace(/[\u0300-\u036f]/g, "") // bỏ dấu tiếng Việt
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
+
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
+const formatViewsCompact = (views) => {
+  const v = Number(views) || 0;
+  const oneDecimal = (n) => n.toFixed(1).replace(/\.0$/, "");
+  if (v >= 1_000_000_000) return `${oneDecimal(v / 1_000_000_000)}B`;
+  if (v >= 1_000_000) return `${oneDecimal(v / 1_000_000)}M`;
+  if (v >= 1_000) return `${oneDecimal(v / 1_000)}K`;
+  return v.toString();
+};
+
+const formatDateHuman = (value) => {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleDateString("vi-VN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  } catch (e) {
+    return "";
+  }
+};
 
 const siteOrigin = (req) => {
   const host =
@@ -863,13 +1111,41 @@ app.get("/sitemap.xml", async (req, res) => {
     }, 0);
     const homeLastmod = newest ? fmt(new Date(newest)) : "";
 
-    const items = videos
-      .filter((v) => v && v.id && v.published !== false)
+    const publishedVideos = videos.filter((v) => v && v.id && v.published !== false);
+
+    const tagMeta = new Map();
+    for (const video of publishedVideos) {
+      if (!Array.isArray(video.tags)) continue;
+      for (const tag of video.tags) {
+        const tagSlug = slugify(tag);
+        if (!tagSlug) continue;
+        const existing = tagMeta.get(tagSlug) || { tag, lastmod: 0 };
+        const t = Date.parse(video.updatedAt || video.createdAt || "");
+        if (!isNaN(t) && t > existing.lastmod) {
+          existing.lastmod = t;
+          existing.tag = tag;
+        }
+        tagMeta.set(tagSlug, existing);
+      }
+    }
+
+    const videoItems = publishedVideos
       .map((v) => {
         const s = slugify(v.title || v.id); // slugify đã khai báo ở trên
         const lastmod = fmt(v.updatedAt || v.createdAt);
         return `<url>
   <loc>${origin}/video/${s}</loc>
+  <changefreq>weekly</changefreq>
+  ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
+</url>`;
+      })
+      .join("\n");
+
+    const tagItems = Array.from(tagMeta.entries())
+      .map(([slug, info]) => {
+        const lastmod = info.lastmod ? fmt(new Date(info.lastmod)) : "";
+        return `<url>
+  <loc>${origin}/tag/${slug}</loc>
   <changefreq>weekly</changefreq>
   ${lastmod ? `<lastmod>${lastmod}</lastmod>` : ""}
 </url>`;
@@ -883,7 +1159,8 @@ app.get("/sitemap.xml", async (req, res) => {
     <changefreq>daily</changefreq>
     ${homeLastmod ? `<lastmod>${homeLastmod}</lastmod>` : ""}
   </url>
-  ${items}
+  ${videoItems}
+  ${tagItems}
 </urlset>`;
 
     res.set("Cache-Control", "public, max-age=3600");

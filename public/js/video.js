@@ -2,6 +2,9 @@ let currentVideo = null;
 let currentServerIndex = 0;
 let currentTagFilter = null;
 
+const FALLBACK_THUMBNAIL_SRC =
+  "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%209%27%3E%3Crect%20width%3D%2716%27%20height%3D%279%27%20fill%3D%27%230f172a%27%2F%3E%3Cpath%20fill%3D%27%231f2937%27%20d%3D%27M0%200h16v9H0z%27%2F%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2714%27%20height%3D%277%27%20fill%3D%27none%27%20stroke%3D%27%23334155%27%20stroke-width%3D%27.5%27%2F%3E%3Cpath%20fill%3D%27%23475569%27%20d%3D%27M4.5%203.5l1.75%202.25%201.25-1.5%201.75%202.25h-7z%27%2F%3E%3Ccircle%20cx%3D%275.5%27%20cy%3D%273.5%27%20r%3D%27.75%27%20fill%3D%27%2364748b%27%2F%3E%3C%2Fsvg%3E";
+
 const tagResultsSection = document.getElementById("tagResultsSection");
 const tagResultsTitle = document.getElementById("tagResultsTitle");
 const tagResultsSubtitle = document.getElementById("tagResultsSubtitle");
@@ -623,12 +626,15 @@ function renderTagResultCards(videos) {
       const href = slug
         ? `/video/${slug}`
         : `/watch/${encodeURIComponent(video.id)}`;
+      const thumbnail = escapeHtml(
+        video.thumbnail || FALLBACK_THUMBNAIL_SRC,
+      );
       return `
         <a class="video-card related-video-card" href="${href}">
           <div class="video-thumbnail">
-            <img src="${video.thumbnail}" alt="${escapeHtml(
+            <img src="${thumbnail}" alt="${escapeHtml(
         video.title,
-      )}" loading="lazy" onerror="this.src='/images/placeholder.jpg'">
+      )}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_THUMBNAIL_SRC}'">
             <div class="video-duration">${escapeHtml(video.duration || "")}</div>
           </div>
           <div class="video-info">
@@ -694,35 +700,37 @@ async function loadRelatedVideos() {
 
     // Render related videos
     relatedGrid.innerHTML = relatedVideos
-      .map(
-        (video) => `
-            <a class="video-card related-video-card" href="/video/${(
-              video.title || ""
-            )
-              .toLowerCase()
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .replace(/[^a-z0-9]+/g, "-")
-              .replace(/(^-|-$)/g, "")}">
-
+      .map((video) => {
+        const slug = slugifyTitle(video.title || "");
+        const href = slug
+          ? `/video/${slug}`
+          : `/watch/${encodeURIComponent(video.id)}`;
+        const thumbnail = escapeHtml(
+          video.thumbnail || FALLBACK_THUMBNAIL_SRC,
+        );
+        const title = escapeHtml(video.title);
+        const duration = escapeHtml(video.duration || "");
+        const viewsLabel = formatViews(video.views || 0);
+        return `
+            <a class="video-card related-video-card" href="${href}">
                 <div class="video-thumbnail">
-                    <img src="${video.thumbnail}" alt="${video.title}" loading="lazy" onerror="this.src='/images/placeholder.jpg'">
-                    <div class="video-duration">${video.duration}</div>
+                    <img src="${thumbnail}" alt="${title}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_THUMBNAIL_SRC}'">
+                    <div class="video-duration">${duration}</div>
                 </div>
                 <div class="video-info">
-                    <h3 class="video-title">${video.title}</h3>
+                    <h3 class="video-title">${title}</h3>
                     <div class="video-meta">
                         <div class="video-views">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
                             </svg>
-                            ${formatViews(video.views || 0)}
+                            ${viewsLabel}
                         </div>
                     </div>
                 </div>
             </a>
-        `,
-      )
+        `;
+      })
       .join("");
 
     console.log("Related videos rendered successfully");

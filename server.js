@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const fs = require("fs").promises;
+const { DatabaseSync } = require("node:sqlite");
 const cors = require("cors");
 const multer = require("multer");
 const bcrypt = require("bcrypt");
@@ -38,32 +39,152 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Data file path
-const DATA_FILE = path.join(__dirname, "data", "videos.json");
+// Database paths & helpers
+const DB_PATH = path.join(__dirname, "data", "videos.db");
+const JSON_DATA_FILE = path.join(__dirname, "data", "videos.json");
 
-// Initialize data file if not exists
-async function initDataFile() {
+let dbInstance = null;
+let dbInitPromise = null;
+
+async function ensureDatabase() {
+  if (dbInstance) return dbInstance;
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
+      const database = new DatabaseSync(DB_PATH);
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS videos (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          embedUrls TEXT DEFAULT '[]',
+          thumbnail TEXT,
+          duration TEXT,
+          category TEXT,
+          tags TEXT DEFAULT '[]',
+          notes TEXT,
+          downloadLink TEXT,
+          views INTEGER DEFAULT 0,
+          published INTEGER DEFAULT 1,
+          createdAt TEXT,
+          updatedAt TEXT,
+          orderIndex REAL,
+          sortOrder INTEGER
+        )
+      `);
+      database.exec(
+        "CREATE INDEX IF NOT EXISTS idx_videos_category ON videos(category)",
+      );
+      database.exec(
+        "CREATE INDEX IF NOT EXISTS idx_videos_order ON videos(orderIndex)",
+      );
+      dbInstance = database;
+      await migrateFromJsonIfNeeded(database);
+      return database;
+    })();
+  }
+  return dbInitPromise;
+}
+
+async function migrateFromJsonIfNeeded(database) {
+  const countRow = database
+    .prepare("SELECT COUNT(*) as count FROM videos")
+    .get();
+  if (countRow?.count > 0) return;
   try {
-    await fs.access(DATA_FILE);
-  } catch {
-    await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
-    await fs.writeFile(DATA_FILE, JSON.stringify([], null, 2));
+    const raw = await fs.readFile(JSON_DATA_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length) {
+      await writeVideos(parsed);
+    }
+  } catch (err) {
+    if (err?.code !== "ENOENT") {
+      console.error("Migration error:", err);
+    }
   }
 }
 
-// Read videos data
-async function readVideos() {
+const safeParseJson = (value) => {
+  if (!value) return [];
   try {
-    const data = await fs.readFile(DATA_FILE, "utf8");
-    return JSON.parse(data);
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
   }
+};
+
+const toNumberOrDefault = (value, fallback = 0) => {
+  const num = Number(value);
+  return Number.isNaN(num) ? fallback : num;
+};
+
+const toNumberOrNull = (value) => {
+  const num = Number(value);
+  return Number.isNaN(num) ? null : num;
+};
+
+async function readVideos() {
+  const database = await ensureDatabase();
+  const rows = database
+    .prepare("SELECT * FROM videos ORDER BY sortOrder ASC")
+    .all();
+  return rows.map((row) => ({
+    id: String(row.id),
+    title: row.title || "",
+    embedUrls: safeParseJson(row.embedUrls),
+    thumbnail: row.thumbnail || "",
+    duration: row.duration || "",
+    category: row.category || "",
+    tags: safeParseJson(row.tags),
+    notes: row.notes || "",
+    downloadLink: row.downloadLink || "",
+    views: toNumberOrDefault(row.views, 0),
+    published: row.published !== 0,
+    createdAt: row.createdAt || null,
+    updatedAt: row.updatedAt || null,
+    orderIndex: toNumberOrNull(row.orderIndex),
+  }));
 }
 
-// Write videos data
 async function writeVideos(videos) {
-  await fs.writeFile(DATA_FILE, JSON.stringify(videos, null, 2));
+  const database = await ensureDatabase();
+  database.exec("BEGIN");
+  try {
+    database.exec("DELETE FROM videos");
+    const insert = database.prepare(`
+      INSERT INTO videos (
+        id, title, embedUrls, thumbnail, duration, category, tags, notes,
+        downloadLink, views, published, createdAt, updatedAt, orderIndex, sortOrder
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    videos.forEach((video, index) => {
+      insert.run(
+        String(video.id),
+        video.title || "",
+        JSON.stringify(video.embedUrls ?? []),
+        video.thumbnail || "",
+        video.duration || "",
+        video.category || "",
+        JSON.stringify(video.tags ?? []),
+        video.notes || "",
+        video.downloadLink || "",
+        toNumberOrDefault(video.views, 0),
+        video.published === false ? 0 : 1,
+        video.createdAt || null,
+        video.updatedAt || null,
+        toNumberOrNull(video.orderIndex),
+        index,
+      );
+    });
+    database.exec("COMMIT");
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK");
+    } catch (_) {
+      // ignore rollback errors
+    }
+    throw error;
+  }
 }
 
 // Helper function for subsequence matching
@@ -688,8 +809,7 @@ const siteOrigin = (req) => {
 app.get("/sitemap.xml", async (req, res) => {
   try {
     const origin = siteOrigin(req); // hàm này đã có sẵn ở trên
-    const raw = await fs.readFile(DATA_FILE, "utf8");
-    const videos = JSON.parse(raw);
+    const videos = await readVideos();
 
     // helper: định dạng YYYY-MM-DD
     const fmt = (d) => {
@@ -741,7 +861,7 @@ app.get("/sitemap.xml", async (req, res) => {
 
 // Initialize and start server
 async function startServer() {
-  await initDataFile();
+  await ensureDatabase();
   await fs.mkdir("public/uploads", { recursive: true });
   app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);

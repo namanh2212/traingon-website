@@ -181,8 +181,9 @@ function renderAdminAnnouncements() {
   const now = Date.now();
   adminAnnouncements.forEach((item) => {
     const card = document.createElement("div");
+    const announcementId = String(item.id || "");
     card.className = "announcement-card";
-    card.dataset.id = String(item.id || "");
+    card.dataset.id = announcementId;
 
     const messageEl = document.createElement("div");
     messageEl.className = "announcement-card-message";
@@ -216,10 +217,58 @@ function renderAdminAnnouncements() {
     meta.append(countdownWrap, createdWrap);
     card.appendChild(meta);
 
+    const actions = document.createElement("div");
+    actions.className = "announcement-card-actions";
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.className = "announcement-delete";
+    deleteBtn.textContent = "Xóa thông báo";
+    deleteBtn.addEventListener("click", () => {
+      const performDelete = () => deleteAdminAnnouncement(announcementId);
+      if (typeof showConfirmModal === "function") {
+        showConfirmModal(
+          "Xóa thông báo",
+          "Bạn có chắc chắn muốn xóa thông báo này ngay lập tức?",
+          performDelete,
+        );
+      } else if (window.confirm("Bạn có chắc chắn muốn xóa thông báo này?")) {
+        performDelete();
+      }
+    });
+    actions.appendChild(deleteBtn);
+    card.appendChild(actions);
+
     list.appendChild(card);
   });
 
   startAdminAnnouncementCountdown();
+}
+
+async function deleteAdminAnnouncement(id) {
+  if (!id) return;
+
+  try {
+    const res = await fetch(`/api/admin/announcements/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+
+    if (!res.ok) {
+      const payload = await res.json().catch(() => ({}));
+      const message = payload?.error || "Không thể xóa thông báo.";
+      if (typeof showToast === "function") showToast(message, "error");
+      else alert(message);
+      return;
+    }
+
+    if (typeof showToast === "function") showToast("Đã xóa thông báo", "success");
+    await loadAdminAnnouncements();
+  } catch (error) {
+    console.error("Delete announcement error:", error);
+    if (typeof showToast === "function")
+      showToast("Không thể xóa thông báo", "error");
+    else alert("Không thể xóa thông báo");
+  }
 }
 
 function buildAnnouncementMessageFragment(text) {

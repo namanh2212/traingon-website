@@ -653,6 +653,30 @@ app.post("/api/admin/announcements", requireAuth, async (req, res) => {
   }
 });
 
+app.delete("/api/admin/announcements/:id", requireAuth, async (req, res) => {
+  try {
+    const id = String(req.params?.id ?? "").trim();
+    if (!id) {
+      return res.status(400).json({ error: "Announcement id is required" });
+    }
+
+    const announcements = await readAnnouncements();
+    const remaining = announcements.filter(
+      (item) => String(item.id ?? "") !== id,
+    );
+
+    if (remaining.length === announcements.length) {
+      return res.status(404).json({ error: "Announcement not found" });
+    }
+
+    await writeAnnouncements(remaining);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete announcement error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 app.get("/api/announcements", async (req, res) => {
   try {
     const announcements = await readAnnouncements();

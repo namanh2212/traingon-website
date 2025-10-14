@@ -26,6 +26,7 @@ public/uploads/*
 
 # Database files
 data/*.json
+data/*.db
 !data/.gitkeep
 
 # OS generated files

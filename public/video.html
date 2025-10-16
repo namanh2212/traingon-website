@@ -12,16 +12,38 @@
     <header class="header">
       <div class="container">
         <div class="header-content">
-          <div class="logo">
-            <span class="logo-badge">T</span>
-            <span class="logo-text">Traingon.top</span>
-          </div>
+          <a href="/" class="logo" aria-label="Traingon Home">
+            <span class="logo-wordmark">traingon</span>
+          </a>
+
+          <button
+            class="menu-toggle"
+            id="menuToggle"
+            aria-label="Open Menu"
+            aria-expanded="false"
+            aria-controls="mobileNav"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z" />
+            </svg>
+          </button>
 
           <nav class="nav">
             <a href="/?category=all" class="nav-link">All videos</a>
+            <a href="/?category=china" class="nav-link">China</a>
             <a href="/?category=gaydar" class="nav-link">Gaydar</a>
-            <a href="/?category=asian" class="nav-link">Asian</a>
+            <a href="/?category=vietnam" class="nav-link">Vietnam</a>
             <a href="/?category=japan" class="nav-link">Japan</a>
+            <a href="/?category=western" class="nav-link">Western</a>
+            <a href="/?category=magazine" class="nav-link">Magazine</a>
+            <a href="/?category=straight" class="nav-link">Straight</a>
+            <a href="/?category=other" class="nav-link">Other</a>
           </nav>
 
           <div class="search-container">
@@ -63,6 +85,20 @@
           />
           <button class="mobile-search-close">✕</button>
         </div>
+
+        <nav class="mobile-nav" id="mobileNav" aria-hidden="true">
+          <a href="/?category=all" class="nav-link">All videos</a>
+          <a href="/?category=china" class="nav-link">China</a>
+          <a href="/?category=gaydar" class="nav-link">Gaydar</a>
+          <a href="/?category=vietnam" class="nav-link">Vietnam</a>
+          <a href="/?category=japan" class="nav-link">Japan</a>
+          <a href="/?category=western" class="nav-link">Western</a>
+          <a href="/?category=magazine" class="nav-link">Magazine</a>
+          <a href="/?category=straight" class="nav-link">Straight</a>
+          <a href="/?category=other" class="nav-link">Other</a>
+        </nav>
+
+        <div class="nav-backdrop" id="navBackdrop"></div>
       </div>
     </header>
 
@@ -71,24 +107,9 @@
       <div class="container">
         <div class="content-layout">
           <div class="main-content">
-            <a
-              href="/"
-              class="back-home"
-              style="
-                display: inline-flex;
-                align-items: center;
-                gap: 0.4rem;
-                margin: 0 0 1rem 0;
-                padding: 0.4rem 0.7rem;
-                border-radius: 8px;
-                background: rgba(255, 255, 255, 0.06);
-                border: 1px solid rgba(255, 255, 255, 0.12);
-                color: #eaeaea;
-                text-decoration: none;
-                font-size: 0.9rem;
-              "
-            >
-              <span style="font-size: 1.1rem; line-height: 1">←</span> Home
+            <a href="/" class="back-home">
+              <span aria-hidden="true">←</span>
+              Home
             </a>
 
             <!-- Video Selection -->
@@ -108,23 +129,12 @@
             <div class="video-player">
               <div class="player-shell">
                 <div id="videoPlayer">
-                  <div
-                    style="
-                      display: flex;
-                      align-items: center;
-                      justify-content: center;
-                      height: 60vh;
-                      background: rgba(255, 255, 255, 0.1);
-                      border-radius: 16px;
-                      color: #a7a7b3;
-                    "
-                  >
-                    <div style="text-align: center">
-                      <div style="font-size: 2rem; margin-bottom: 1rem">⏳</div>
-                      <div>Loading video...</div>
-                    </div>
+                  <div class="player-loading">
+                    <div class="player-loading-icon">⏳</div>
+                    <div>Loading video...</div>
                   </div>
                 </div>
+                <div class="player-brand">traingon.top</div>
                 <!-- Badge -->
                 <div class="tg-badge" aria-hidden="true">traingon.top</div>
                 <!-- ==== EXO OVERLAY: LỚP PHỦ TRÊN PLAYER (xóa block này để tắt) ==== 
@@ -342,6 +352,7 @@
     <script async data-cfasync="false" data-clocid="2084258" src="//nappyonsetstiffness.com/on.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script src="/js/main.js?v=031025"></script>
     <script src="/js/video.js?v=1"></script>
   </body>
 </html>

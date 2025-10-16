@@ -7,8 +7,13 @@ let imageModalEl = null;
 let imageModalImg = null;
 let imageModalIsOpen = false;
 
-const FALLBACK_THUMBNAIL_SRC =
+const VIDEO_FALLBACK_THUMBNAIL_SRC =
+  (typeof window !== "undefined" && window.FALLBACK_THUMBNAIL_SRC) ||
   "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%209%27%3E%3Crect%20width%3D%2716%27%20height%3D%279%27%20fill%3D%27%230f172a%27%2F%3E%3Cpath%20fill%3D%27%231f2937%27%20d%3D%27M0%200h16v9H0z%27%2F%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2714%27%20height%3D%277%27%20fill%3D%27none%27%20stroke%3D%27%23334155%27%20stroke-width%3D%27.5%27%2F%3E%3Cpath%20fill%3D%27%23475569%27%20d%3D%27M4.5%203.5l1.75%202.25%201.25-1.5%201.75%202.25h-7z%27%2F%3E%3Ccircle%20cx%3D%275.5%27%20cy%3D%273.5%27%20r%3D%27.75%27%20fill%3D%27%2364748b%27%2F%3E%3C%2Fsvg%3E";
+
+if (typeof window !== "undefined" && !window.FALLBACK_THUMBNAIL_SRC) {
+  window.FALLBACK_THUMBNAIL_SRC = VIDEO_FALLBACK_THUMBNAIL_SRC;
+}
 
 const tagResultsSection = document.getElementById("tagResultsSection");
 const tagResultsTitle = document.getElementById("tagResultsTitle");
@@ -100,12 +105,10 @@ async function loadVideo() {
   } catch (error) {
     console.error("Error loading video:", error);
     document.getElementById("videoPlayer").innerHTML = `
-            <div style="display: flex; align-items: center; justify-content: center; height: 60vh; background: rgba(255,255,255,0.1); border-radius: 16px; color: #a7a7b3; text-align: center;">
-                <div>
-                    <div style="font-size: 2rem; margin-bottom: 1rem;">❌</div>
-                    <div>Video không tồn tại hoặc đã bị xóa</div>
-                    <button onclick="window.location.href='/'" style="margin-top: 1rem; background: linear-gradient(135deg, #ff6b6b, #ff5252); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 12px; cursor: pointer;">Về trang chủ</button>
-                </div>
+            <div class="player-loading">
+                <div class="player-loading-icon">❌</div>
+                <div>Video không tồn tại hoặc đã bị xóa</div>
+                <button type="button" class="btn-primary" onclick="window.location.href='/'">Về trang chủ</button>
             </div>
         `;
   }
@@ -649,11 +652,9 @@ function renderVideoDetails() {
   videoDetails.innerHTML = `
         <h1 class="video-title">${currentVideo.title}</h1>
         <div class="video-meta">
-            <div class="video-meta-item">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                </svg>
-                ${formatViews(currentVideo.views || 0)} views
+            <div class="video-meta-item views-meta" aria-label="${formatViews(currentVideo.views || 0)} views">
+                <span class="views-count">${formatViews(currentVideo.views || 0)}</span>
+                <span class="views-label">views</span>
             </div>
             <div class="video-meta-item">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -701,20 +702,24 @@ function renderVideoImages() {
     .map((url, index) => {
       const finalUrl = absUrl(url);
       return `
-        <a href="${finalUrl}" target="_blank" rel="noopener" aria-label="Ảnh kèm theo ${index + 1}">
+        <button
+          type="button"
+          class="video-image-button"
+          data-image="${finalUrl}"
+          aria-label="Ảnh kèm theo ${index + 1}"
+        >
           <img src="${finalUrl}" alt="Ảnh kèm theo ${index + 1}" loading="lazy">
-        </a>
+        </button>
       `;
     })
     .join("");
 
   section.style.display = "block";
   setupImageModal();
-  grid.querySelectorAll("a").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      const href = link.getAttribute("href");
-      if (href) openImageModal(href);
+  grid.querySelectorAll(".video-image-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const src = button.getAttribute("data-image");
+      if (src) openImageModal(src);
     });
   });
 }
@@ -877,24 +882,22 @@ function renderTagResultCards(videos) {
         ? `/video/${slug}`
         : `/watch/${encodeURIComponent(video.id)}`;
       const thumbnail = escapeHtml(
-        video.thumbnail || FALLBACK_THUMBNAIL_SRC,
+        video.thumbnail || VIDEO_FALLBACK_THUMBNAIL_SRC,
       );
       return `
         <a class="video-card related-video-card" href="${href}">
           <div class="video-thumbnail">
             <img src="${thumbnail}" alt="${escapeHtml(
         video.title,
-      )}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_THUMBNAIL_SRC}'">
+      )}" loading="lazy" onerror="this.onerror=null;this.src='${VIDEO_FALLBACK_THUMBNAIL_SRC}'">
             <div class="video-duration">${escapeHtml(video.duration || "")}</div>
           </div>
           <div class="video-info">
             <h3 class="video-title">${escapeHtml(video.title)}</h3>
             <div class="video-meta">
-              <div class="video-views">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                </svg>
-                ${formatViews(video.views || 0)}
+              <div class="video-views" aria-label="${formatViews(video.views || 0)} views">
+                <span class="views-count">${formatViews(video.views || 0)}</span>
+                <span class="views-label">views</span>
               </div>
             </div>
           </div>
@@ -956,7 +959,7 @@ async function loadRelatedVideos() {
           ? `/video/${slug}`
           : `/watch/${encodeURIComponent(video.id)}`;
         const thumbnail = escapeHtml(
-          video.thumbnail || FALLBACK_THUMBNAIL_SRC,
+          video.thumbnail || VIDEO_FALLBACK_THUMBNAIL_SRC,
         );
         const title = escapeHtml(video.title);
         const duration = escapeHtml(video.duration || "");
@@ -964,17 +967,15 @@ async function loadRelatedVideos() {
         return `
             <a class="video-card related-video-card" href="${href}">
                 <div class="video-thumbnail">
-                    <img src="${thumbnail}" alt="${title}" loading="lazy" onerror="this.onerror=null;this.src='${FALLBACK_THUMBNAIL_SRC}'">
+                    <img src="${thumbnail}" alt="${title}" loading="lazy" onerror="this.onerror=null;this.src='${VIDEO_FALLBACK_THUMBNAIL_SRC}'">
                     <div class="video-duration">${duration}</div>
                 </div>
                 <div class="video-info">
                     <h3 class="video-title">${title}</h3>
                     <div class="video-meta">
-                        <div class="video-views">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                            </svg>
-                            ${viewsLabel}
+                        <div class="video-views" aria-label="${viewsLabel} views">
+                            <span class="views-count">${viewsLabel}</span>
+                            <span class="views-label">views</span>
                         </div>
                     </div>
                 </div>

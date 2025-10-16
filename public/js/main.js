@@ -350,12 +350,16 @@ function initMobileNav() {
     backdrop?.classList.add("open");
     btn.setAttribute("aria-expanded", "true");
     drawer.setAttribute("aria-hidden", "false");
+    btn.classList.add("is-open");
+    document.body.classList.add("nav-open");
   };
   const close = () => {
     drawer.classList.remove("open");
     backdrop?.classList.remove("open");
     btn.setAttribute("aria-expanded", "false");
     drawer.setAttribute("aria-hidden", "true");
+    btn.classList.remove("is-open");
+    document.body.classList.remove("nav-open");
   };
   const toggle = () => (drawer.classList.contains("open") ? close() : open());
 
@@ -388,7 +392,14 @@ async function loadVideos() {
   const loadingSkeleton = document.getElementById("loadingSkeleton");
   const paginationEl = document.getElementById("pagination");
 
-  if (videoGrid) videoGrid.style.visibility = "hidden";
+  if (!videoGrid) {
+    if (loadingSkeleton) loadingSkeleton.style.display = "none";
+    if (paginationEl) paginationEl.innerHTML = "";
+    isLoading = false;
+    return;
+  }
+
+  videoGrid.style.visibility = "hidden";
   if (loadingSkeleton) loadingSkeleton.style.display = "grid";
   if (paginationEl) paginationEl.innerHTML = "";
 
@@ -449,14 +460,35 @@ async function loadVideos() {
 
       // badge thông tin search
       if (currentSearch && videoGrid) {
-        const info = document.createElement("a");
+        const info = document.createElement("div");
         info.className = "search-info";
         const totalText = data.pagination?.total ?? pageList.length;
-        info.innerHTML = `
-          <div style="display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:1rem;">
-            <span style="color:#eaeaea;"><strong>${totalText}</strong> videos for "<strong>${currentSearch}</strong>"</span>
-            <button onclick="clearSearch()" style="background:rgba(255,107,107,.2);border:1px solid #ff6b6b;color:#ff6b6b;padding:.25rem .75rem;border-radius:6px;cursor:pointer;font-size:.8rem;transition:.2s">✕ Clear</button>
-          </div>`;
+        const inner = document.createElement("div");
+        inner.className = "search-info-inner";
+
+        const label = document.createElement("span");
+        const countSpan = document.createElement("span");
+        countSpan.className = "search-info-highlight";
+        countSpan.textContent = totalText;
+
+        const querySpan = document.createElement("span");
+        querySpan.className = "search-info-highlight";
+        querySpan.textContent = currentSearch;
+
+        label.appendChild(countSpan);
+        label.append(" videos for \"");
+        label.appendChild(querySpan);
+        label.append('"');
+
+        const clearBtn = document.createElement("button");
+        clearBtn.type = "button";
+        clearBtn.className = "search-info-clear";
+        clearBtn.textContent = "✕ Clear";
+        clearBtn.addEventListener("click", clearSearch);
+
+        inner.appendChild(label);
+        inner.appendChild(clearBtn);
+        info.appendChild(inner);
         videoGrid.insertBefore(info, videoGrid.firstChild);
       }
     }
@@ -538,11 +570,9 @@ function renderVideos(videos) {
       <div class="video-info">
         <h3 class="video-title">${video.title}</h3>
         <div class="video-meta">
-          <div class="video-views">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-            </svg>
-            ${formatViews(video.views || 0)}
+          <div class="video-views" aria-label="${formatViews(video.views || 0)} views">
+            <span class="views-count">${formatViews(video.views || 0)}</span>
+            <span class="views-label">views</span>
           </div>
         </div>
       </div>
@@ -842,46 +872,52 @@ document.addEventListener("DOMContentLoaded", () => {
   initSearch();
   initMobileNav();
 
-  // from URL
-  applyState(getStateFromURL());
-  updateURL(false);
+  const isHomePage = !!document.getElementById("videoGrid");
 
-  initFiltersUI();
-  loadAnnouncementsTicker();
-  markActiveNav();
+  if (isHomePage) {
+    // from URL
+    applyState(getStateFromURL());
+    updateURL(false);
 
-  generateSkeleton();
-  setTimeout(() => {
-    loadVideos();
-  }, 100);
+    initFiltersUI();
+    loadAnnouncementsTicker();
+    markActiveNav();
 
-  // Reload data when breakpoint changes
-  let resizeTimeout;
-  let __sizeBucket = getSizeBucket();
-  window.addEventListener("resize", () => {
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      const b = getSizeBucket();
-      if (b !== __sizeBucket && !isLoading) {
-        __sizeBucket = b;
-        loadVideos();
-      }
-    }, 200);
-  });
-  function getSizeBucket() {
-    const w = window.innerWidth;
-    if (w <= 480) return "xs";
-    if (w <= 768) return "sm";
-    if (w <= 1199) return "md";
-    return "lg";
+    generateSkeleton();
+    setTimeout(() => {
+      loadVideos();
+    }, 100);
+
+    // Reload data when breakpoint changes
+    let resizeTimeout;
+    let __sizeBucket = getSizeBucket();
+    window.addEventListener("resize", () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        const b = getSizeBucket();
+        if (b !== __sizeBucket && !isLoading) {
+          __sizeBucket = b;
+          loadVideos();
+        }
+      }, 200);
+    });
+    function getSizeBucket() {
+      const w = window.innerWidth;
+      if (w <= 480) return "xs";
+      if (w <= 768) return "sm";
+      if (w <= 1199) return "md";
+      return "lg";
+    }
+
+    // Back/Forward
+    window.addEventListener("popstate", (e) => {
+      const st = e.state || getStateFromURL();
+      applyState(st);
+      loadVideos();
+    });
+  } else {
+    markActiveNav();
   }
-
-  // Back/Forward
-  window.addEventListener("popstate", (e) => {
-    const st = e.state || getStateFromURL();
-    applyState(st);
-    loadVideos();
-  });
 
   // Floating chat
   try {

@@ -442,13 +442,23 @@ function normalizeB2(url) {
 }
 
 // Tự động chuẩn hoá embedUrl1 khi form đang ở chế độ 1 link
-function attachEmbedNormalizationIfSingle() {
-  const input = document.querySelector('input[name="embedUrl1"]');
+function attachEmbedNormalizationIfSingle(group = "primary") {
+  const selectors =
+    group === "secondary"
+      ? {
+          input: 'input[name="secondaryEmbedUrl1"]',
+          count: 'input[name="secondaryEmbedCount"]',
+        }
+      : {
+          input: 'input[name="embedUrl1"]',
+          count: 'input[name="embedCount"]',
+        };
+  const input = document.querySelector(selectors.input);
   if (!input) return;
 
   const handler = () => {
     const embedCount = parseInt(
-      document.querySelector('input[name="embedCount"]:checked')?.value || "1",
+      document.querySelector(`${selectors.count}:checked`)?.value || "1",
     );
     if (embedCount !== 1) return; // chỉ auto khi đúng 1 URL
 
@@ -569,7 +579,9 @@ function initAddVideoForm() {
   if (logoutBtn) logoutBtn.addEventListener("click", logout);
 
   initEmbedInputs();
+  initSecondaryEmbedSection();
   initThumbnailHandling();
+  initImageLinkHandling();
   initDurationFormatting();
   initCategoryHandling();
   initTagsHandling();
@@ -712,6 +724,8 @@ function populateEditForm(video) {
   }
 
   initThumbnailHandling();
+  initSecondaryEmbedSection(video.secondaryEmbedUrls || []);
+  initImageLinkHandling(video.imageUrls || []);
   initDurationFormatting();
   initCategoryHandling();
   initEditTagsHandling();
@@ -767,7 +781,7 @@ function updateEmbedInputsForEdit(count) {
   }
   embedInputs.innerHTML = html;
   // 🆕 gắn auto-normalize khi đang ở chế độ 1 link
-  attachEmbedNormalizationIfSingle();
+  attachEmbedNormalizationIfSingle("primary");
 }
 function handleEditFormSubmit(e) {
   e.preventDefault();
@@ -861,6 +875,39 @@ async function submitEditVideoForm(videoId) {
     if (onlyInput) onlyInput.value = normalized;
   }
   formData.set("embedUrls", JSON.stringify(embedUrls));
+
+  const secondarySection = document.getElementById("secondaryEmbedSection");
+  const secondaryController = secondarySection?.__controller;
+  const secondaryEmbedUrls = [];
+  if (secondaryController?.isEnabled()) {
+    const rawSecondary = secondaryController.collectRawValues();
+    const inputs = secondarySection.querySelectorAll(
+      'input[name^="secondaryEmbedUrl"]',
+    );
+    const seen = new Set();
+    rawSecondary.forEach((raw, idx) => {
+      if (!raw) return;
+      const norm = normalizeB2(raw);
+      if (inputs[idx] && inputs[idx].value !== norm) inputs[idx].value = norm;
+      if (!seen.has(norm)) {
+        seen.add(norm);
+        secondaryEmbedUrls.push(norm);
+      }
+    });
+  }
+  formData.set("secondaryEmbedUrls", JSON.stringify(secondaryEmbedUrls));
+
+  const imageInputs = document.querySelectorAll(".image-link-input");
+  const imageUrls = [];
+  imageInputs.forEach((input) => {
+    if (!input) return;
+    const raw = (input.value || "").trim();
+    if (!raw) return;
+    const norm = normalizeB2(raw);
+    if (norm !== raw) input.value = norm;
+    if (!imageUrls.includes(norm)) imageUrls.push(norm);
+  });
+  formData.set("imageUrls", JSON.stringify(imageUrls));
 
   // tags
   formData.set("tags", JSON.stringify(tags));
@@ -1119,7 +1166,7 @@ function updateEmbedInputs(count) {
   embedInputs.innerHTML = html;
 
   // 🆕 gắn auto-normalize khi đang ở chế độ 1 link
-  attachEmbedNormalizationIfSingle();
+  attachEmbedNormalizationIfSingle("primary");
 }
 
 // Thumbnail handling
@@ -1215,6 +1262,252 @@ function previewThumbnailFile(file) {
     }
   };
   reader.readAsDataURL(file);
+}
+
+function initImageLinkHandling(initialLinks = []) {
+  const container = document.getElementById("imageLinksContainer");
+  const addBtn = document.getElementById("addImageLinkBtn");
+  if (!container || !addBtn) return;
+
+  const showPlaceholder = (previewEl) => {
+    if (!previewEl) return;
+    previewEl.innerHTML =
+      '<div class="image-link-preview-placeholder">Nhập link để xem preview</div>';
+  };
+
+  const setPreview = (previewEl, url) => {
+    if (!previewEl) return;
+    previewEl.innerHTML = "";
+    if (!url) {
+      showPlaceholder(previewEl);
+      return;
+    }
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = "Ảnh xem trước";
+    img.addEventListener("error", () => {
+      previewEl.innerHTML =
+        '<div class="image-link-preview-error">Không thể tải ảnh</div>';
+    });
+    previewEl.appendChild(img);
+  };
+
+  const buildRow = (value = "") => {
+    const wrapper = document.createElement("div");
+    wrapper.className = "image-link-row";
+
+    const field = document.createElement("div");
+    field.className = "image-link-field";
+
+    const input = document.createElement("input");
+    input.type = "url";
+    input.placeholder = "https://example.com/image.jpg";
+    input.className = "form-input image-link-input";
+    if (typeof value === "string") input.value = value;
+
+    const preview = document.createElement("div");
+    preview.className = "image-link-preview";
+
+    field.appendChild(input);
+    field.appendChild(preview);
+    wrapper.appendChild(field);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "image-link-remove";
+    removeBtn.textContent = "Xóa";
+    wrapper.appendChild(removeBtn);
+
+    const normalizeAndPreview = () => {
+      const raw = (input.value || "").trim();
+      if (!raw) {
+        showPlaceholder(preview);
+        return;
+      }
+      const normalized = normalizeB2(raw);
+      input.value = normalized;
+      setPreview(preview, normalized);
+    };
+
+    input.addEventListener("blur", normalizeAndPreview);
+    input.addEventListener("change", normalizeAndPreview);
+    input.addEventListener("paste", () =>
+      setTimeout(normalizeAndPreview, 0),
+    );
+    input.addEventListener("input", () => {
+      if (!input.value.trim()) showPlaceholder(preview);
+    });
+
+    removeBtn.addEventListener("click", () => {
+      wrapper.remove();
+      if (!container.childElementCount) {
+        container.appendChild(buildRow(""));
+      }
+    });
+
+    if (typeof value === "string" && value.trim()) {
+      const normalized = normalizeB2(value.trim());
+      input.value = normalized;
+      setPreview(preview, normalized);
+    } else {
+      showPlaceholder(preview);
+    }
+
+    return wrapper;
+  };
+
+  const render = (values = []) => {
+    container.innerHTML = "";
+    const arr = Array.isArray(values)
+      ? values.filter((item) => typeof item === "string" && item.trim())
+      : [];
+    arr.forEach((val) => container.appendChild(buildRow(val)));
+    if (!container.childElementCount) {
+      container.appendChild(buildRow(""));
+    }
+  };
+
+  const handleAdd = () => {
+    container.appendChild(buildRow(""));
+  };
+
+  if (addBtn.__imageLinkHandler) {
+    addBtn.removeEventListener("click", addBtn.__imageLinkHandler);
+  }
+  addBtn.__imageLinkHandler = handleAdd;
+  addBtn.addEventListener("click", handleAdd);
+
+  container.__renderImageLinks = render;
+
+  render(initialLinks);
+}
+
+function initSecondaryEmbedSection(initialLinks = []) {
+  const section = document.getElementById("secondaryEmbedSection");
+  const toggleBtn = document.getElementById("toggleSecondaryEmbed");
+  const inputsContainer = document.getElementById("secondaryEmbedInputs");
+  if (!section || !toggleBtn || !inputsContainer) return null;
+
+  const embedOptions = section.querySelectorAll(
+    'input[name="secondaryEmbedCount"]',
+  );
+
+  const collectValues = () => {
+    const values = [];
+    inputsContainer
+      .querySelectorAll('input[name^="secondaryEmbedUrl"]')
+      .forEach((input) => {
+        const raw = (input.value || "").trim();
+        if (raw) values.push(raw);
+      });
+    return values;
+  };
+
+  const updateInputs = (count, explicitValues) => {
+    const currentValues =
+      Array.isArray(explicitValues) && explicitValues.length
+        ? explicitValues
+        : collectValues();
+    let html = "";
+    for (let i = 1; i <= count; i++) {
+      html += `
+        <div class="embed-input-group">
+          <input type="url" name="secondaryEmbedUrl${i}" placeholder="URL Video 2 - Server ${i}" ${i === 1 ? "required" : ""} class="form-input">
+          <div class="form-error" id="secondaryEmbedUrl${i}Error"></div>
+        </div>`;
+    }
+    inputsContainer.innerHTML = html;
+
+    const inputs = inputsContainer.querySelectorAll(
+      'input[name^="secondaryEmbedUrl"]',
+    );
+    currentValues.slice(0, inputs.length).forEach((value, idx) => {
+      inputs[idx].value = value;
+    });
+
+    attachEmbedNormalizationIfSingle("secondary");
+  };
+
+  const setEnabled = (enabled, values) => {
+    if (enabled) {
+      section.dataset.enabled = "true";
+      section.style.display = "block";
+      toggleBtn.textContent = "Xóa Video 2";
+      const normalizedValues =
+        Array.isArray(values) && values.length
+          ? values.map((v) => normalizeB2(v))
+          : collectValues();
+      const selectedCount = parseInt(
+        section.querySelector('input[name="secondaryEmbedCount"]:checked')
+          ?.value || "1",
+      );
+      const count = Math.max(1, normalizedValues.length || selectedCount || 1);
+      const radio = section.querySelector(
+        `input[name="secondaryEmbedCount"][value="${count}"]`,
+      );
+      if (radio) radio.checked = true;
+      updateInputs(count, normalizedValues);
+    } else {
+      section.dataset.enabled = "false";
+      section.style.display = "none";
+      toggleBtn.textContent = "+ Thêm Video 2";
+      const defaultRadio = section.querySelector(
+        'input[name="secondaryEmbedCount"][value="1"]',
+      );
+      if (defaultRadio) defaultRadio.checked = true;
+      inputsContainer.innerHTML = "";
+    }
+  };
+
+  embedOptions.forEach((option) => {
+    if (option.__secondaryHandler) {
+      option.removeEventListener("change", option.__secondaryHandler);
+    }
+    option.__secondaryHandler = (e) => {
+      if (section.dataset.enabled !== "true") return;
+      const count = parseInt(e.target.value, 10);
+      updateInputs(count);
+    };
+    option.addEventListener("change", option.__secondaryHandler);
+  });
+
+  if (toggleBtn.__secondaryHandler) {
+    toggleBtn.removeEventListener("click", toggleBtn.__secondaryHandler);
+  }
+  toggleBtn.__secondaryHandler = () => {
+    const enabled = section.dataset.enabled === "true";
+    if (enabled) setEnabled(false);
+    else setEnabled(true);
+  };
+  toggleBtn.addEventListener("click", toggleBtn.__secondaryHandler);
+
+  const controller = {
+    enable(values = []) {
+      setEnabled(true, values);
+    },
+    disable() {
+      setEnabled(false);
+    },
+    isEnabled() {
+      return section.dataset.enabled === "true";
+    },
+    collectRawValues() {
+      return controller.isEnabled() ? collectValues() : [];
+    },
+    updateCount(count, values) {
+      updateInputs(count, values);
+    },
+  };
+
+  section.__controller = controller;
+
+  if (Array.isArray(initialLinks) && initialLinks.length) {
+    controller.enable(initialLinks);
+  } else {
+    setEnabled(false);
+  }
+
+  return controller;
 }
 
 // Duration formatting
@@ -1338,6 +1631,8 @@ async function submitVideoForm(saveAndNew = false) {
   if (!form) return;
 
   const formData = new FormData(form);
+  const secondarySection = document.getElementById("secondaryEmbedSection");
+  const secondaryController = secondarySection?.__controller;
 
   const embedUrls = [];
   const embedCount = parseInt(
@@ -1354,6 +1649,37 @@ async function submitVideoForm(saveAndNew = false) {
     if (onlyInput) onlyInput.value = normalized;
   }
   formData.set("embedUrls", JSON.stringify(embedUrls));
+
+  const secondaryEmbedUrls = [];
+  if (secondaryController?.isEnabled()) {
+    const rawSecondary = secondaryController.collectRawValues();
+    const inputs = secondarySection.querySelectorAll(
+      'input[name^="secondaryEmbedUrl"]',
+    );
+    const seen = new Set();
+    rawSecondary.forEach((raw, idx) => {
+      if (!raw) return;
+      const norm = normalizeB2(raw);
+      if (inputs[idx] && inputs[idx].value !== norm) inputs[idx].value = norm;
+      if (!seen.has(norm)) {
+        seen.add(norm);
+        secondaryEmbedUrls.push(norm);
+      }
+    });
+  }
+  formData.set("secondaryEmbedUrls", JSON.stringify(secondaryEmbedUrls));
+
+  const imageInputs = document.querySelectorAll(".image-link-input");
+  const imageUrls = [];
+  imageInputs.forEach((input) => {
+    if (!input) return;
+    const raw = (input.value || "").trim();
+    if (!raw) return;
+    const norm = normalizeB2(raw);
+    if (norm !== raw) input.value = norm;
+    if (!imageUrls.includes(norm)) imageUrls.push(norm);
+  });
+  formData.set("imageUrls", JSON.stringify(imageUrls));
 
   formData.set("tags", JSON.stringify(tags));
 
@@ -1400,6 +1726,16 @@ async function submitVideoForm(saveAndNew = false) {
         if (notesCount) notesCount.textContent = "0";
         if (thumbnailPreview) thumbnailPreview.innerHTML = "";
         if (thumbnailFilePreview) thumbnailFilePreview.innerHTML = "";
+        const imageLinksContainer = document.getElementById(
+          "imageLinksContainer",
+        );
+        if (imageLinksContainer) {
+          if (typeof imageLinksContainer.__renderImageLinks === "function") {
+            imageLinksContainer.__renderImageLinks([]);
+          } else {
+            initImageLinkHandling();
+          }
+        }
         const embedCount1 = document.querySelector(
           'input[name="embedCount"][value="1"]',
         );
@@ -1407,6 +1743,7 @@ async function submitVideoForm(saveAndNew = false) {
           embedCount1.checked = true;
           updateEmbedInputs(1);
         }
+        if (secondaryController) secondaryController.disable();
         const thumbnailTypeUrl = document.querySelector(
           'input[name="thumbnailType"][value="url"]',
         );

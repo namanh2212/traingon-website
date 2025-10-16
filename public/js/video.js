@@ -1,6 +1,11 @@
 let currentVideo = null;
 let currentServerIndex = 0;
+let currentGroupIndex = 0;
 let currentTagFilter = null;
+let imageModalSetupDone = false;
+let imageModalEl = null;
+let imageModalImg = null;
+let imageModalIsOpen = false;
 
 const FALLBACK_THUMBNAIL_SRC =
   "data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2016%209%27%3E%3Crect%20width%3D%2716%27%20height%3D%279%27%20fill%3D%27%230f172a%27%2F%3E%3Cpath%20fill%3D%27%231f2937%27%20d%3D%27M0%200h16v9H0z%27%2F%3E%3Crect%20x%3D%271%27%20y%3D%271%27%20width%3D%2714%27%20height%3D%277%27%20fill%3D%27none%27%20stroke%3D%27%23334155%27%20stroke-width%3D%27.5%27%2F%3E%3Cpath%20fill%3D%27%23475569%27%20d%3D%27M4.5%203.5l1.75%202.25%201.25-1.5%201.75%202.25h-7z%27%2F%3E%3Ccircle%20cx%3D%275.5%27%20cy%3D%273.5%27%20r%3D%27.75%27%20fill%3D%27%2364748b%27%2F%3E%3C%2Fsvg%3E";
@@ -77,6 +82,8 @@ async function loadVideo() {
     }
 
     currentVideo = await response.json();
+    currentServerIndex = 0;
+    currentGroupIndex = 0;
     console.log("Video loaded:", currentVideo);
 
     // Update page title
@@ -110,28 +117,21 @@ function renderVideo() {
 
   hideTagResults({ clearActive: true });
 
-  // Render server buttons if multiple servers
-  if (currentVideo.embedUrls && currentVideo.embedUrls.length > 1) {
-    const serverButtons = document.getElementById("serverButtons");
-    serverButtons.style.display = "flex";
-
-    let buttonsHtml = "";
-    currentVideo.embedUrls.forEach((url, index) => {
-      buttonsHtml += `
-                <button class="server-btn ${index === 0 ? "active" : ""}" onclick="switchServer(${index})">
-                    Server ${index + 1}
-                </button>
-            `;
-    });
-
-    serverButtons.innerHTML = buttonsHtml;
+  const groups = getEmbedGroups();
+  const availableGroups = groups.length ? groups : [[]];
+  if (currentGroupIndex >= availableGroups.length) currentGroupIndex = 0;
+  const activeGroup = availableGroups[currentGroupIndex] || [];
+  if (!activeGroup.length || currentServerIndex >= activeGroup.length) {
+    currentServerIndex = 0;
   }
 
-  // Render video player
+  renderVideoGroupButtons(availableGroups);
+  renderServerButtons(activeGroup);
   renderVideoPlayer();
 
   // Render video details
   renderVideoDetails();
+  renderVideoImages();
 
   // Setup mobile chat
   setupMobileChat();
@@ -153,6 +153,66 @@ function absUrl(u) {
   } catch {
     return u;
   }
+}
+function __b2_buildCacheUrl(bucket, key, search) {
+  const safePath = String(key)
+    .split("/")
+    .filter(Boolean)
+    .map((seg) =>
+      encodeURIComponent(decodeURIComponent(seg.replace(/\+/g, " "))),
+    )
+    .join("/");
+  return `https://b2.traingon.top/file/${encodeURIComponent(bucket)}/${safePath}${search || ""}`;
+}
+function normalizeB2(url) {
+  if (!url || typeof url !== "string") return (url || "").trim();
+  url = url.trim();
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase();
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (
+      host.startsWith("f") &&
+      host.endsWith(".backblazeb2.com") &&
+      parts[0] === "file" &&
+      parts.length >= 3
+    ) {
+      const bucket = parts[1];
+      const key = parts.slice(2).join("/");
+      return __b2_buildCacheUrl(bucket, key, u.search);
+    }
+    if (/\.s3\.[^/]+\.backblazeb2\.com$/.test(host)) {
+      const bucket = host.split(".s3.")[0];
+      const key = u.pathname.replace(/^\/+/, "");
+      return key ? __b2_buildCacheUrl(bucket, key, u.search) : url;
+    }
+    if (/^s3\.[^/]+\.backblazeb2\.com$/.test(host) && parts.length >= 2) {
+      const bucket = parts[0];
+      const key = parts.slice(1).join("/");
+      return __b2_buildCacheUrl(bucket, key, u.search);
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+function sanitizeEmbedList(list) {
+  if (!Array.isArray(list)) return [];
+  const cleaned = list
+    .map((url) =>
+      typeof url === "string" ? normalizeB2(url.trim()) : "",
+    )
+    .filter(Boolean);
+  return Array.from(new Set(cleaned));
+}
+function getEmbedGroups() {
+  if (!currentVideo) return [];
+  const groups = [];
+  const primary = sanitizeEmbedList(currentVideo.embedUrls);
+  if (primary.length) groups.push(primary);
+  const secondary = sanitizeEmbedList(currentVideo.secondaryEmbedUrls);
+  if (secondary.length) groups.push(secondary);
+  return groups;
 }
 function isoDate(s) {
   const d = s ? new Date(s) : null;
@@ -177,7 +237,12 @@ function applySEO(v) {
   const desc = (v.notes || v.description || v.title || "")
     .toString()
     .slice(0, 160);
-  const image = absUrl(v.thumbnail || (v.images && v.images[0]));
+  const primaryImage =
+    v.thumbnail ||
+    (Array.isArray(v.imageUrls) && v.imageUrls.length
+      ? v.imageUrls[0]
+      : undefined);
+  const image = primaryImage ? absUrl(normalizeB2(primaryImage)) : "";
   const pageUrl = location.origin + location.pathname; // canonical /video/<slug>
   const site = "Traingon.top";
   const locale = "en_US"; // hoặc "vi_VN" nếu bạn muốn
@@ -329,7 +394,33 @@ function applySEO(v) {
 // Thay thế toàn bộ hàm cũ bằng hàm mới này
 function renderVideoPlayer() {
   const wrap = document.getElementById("videoPlayer");
-  const url = (currentVideo.embedUrls || [])[currentServerIndex] || "";
+  if (!wrap) return;
+
+  const groups = getEmbedGroups();
+  const activeGroup = groups[currentGroupIndex] || [];
+  if (!activeGroup.length) {
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:60vh;background:rgba(255,255,255,0.08);border-radius:16px;color:#a7a7b3;text-align:center;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:1rem;">ℹ️</div>
+          <div>Video này chưa có link phát. Vui lòng quay lại sau.</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  if (currentServerIndex >= activeGroup.length) currentServerIndex = 0;
+  const url = activeGroup[currentServerIndex] || "";
+  if (!url) {
+    wrap.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:center;height:60vh;background:rgba(255,255,255,0.08);border-radius:16px;color:#a7a7b3;text-align:center;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:1rem;">⏳</div>
+          <div>Đang chuẩn bị link phát...</div>
+        </div>
+      </div>`;
+    return;
+  }
 
   // Phát HLS hoặc file mp4/webm/ogg
   const isHls = /\.m3u8(\?|$)/i.test(url);
@@ -440,8 +531,81 @@ function renderVideoPlayer() {
     });
 }
 
+function renderVideoGroupButtons(groups) {
+  const container = document.getElementById("videoGroupButtons");
+  if (!container) return;
+
+  if (!Array.isArray(groups) || groups.length <= 1) {
+    container.style.display = "none";
+    container.innerHTML = "";
+    return;
+  }
+
+  container.style.display = "flex";
+  container.innerHTML = groups
+    .map(
+      (_, index) => `
+        <button type="button" class="video-group-btn${index === currentGroupIndex ? " active" : ""}" data-group="${index}">
+          Video ${index + 1}
+        </button>`,
+    )
+    .join("");
+
+  container.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.group);
+      switchVideoGroup(idx);
+    });
+  });
+}
+
+function renderServerButtons(urls) {
+  const serverButtons = document.getElementById("serverButtons");
+  if (!serverButtons) return;
+
+  const list = Array.isArray(urls) ? urls.filter(Boolean) : [];
+  if (list.length <= 1) {
+    serverButtons.style.display = "none";
+    serverButtons.innerHTML = "";
+    return;
+  }
+
+  serverButtons.style.display = "flex";
+  serverButtons.innerHTML = list
+    .map(
+      (_url, index) => `
+        <button type="button" class="server-btn ${index === currentServerIndex ? "active" : ""}" data-server="${index}">
+          Server ${index + 1}
+        </button>`,
+    )
+    .join("");
+
+  serverButtons.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.dataset.server);
+      switchServer(idx);
+    });
+  });
+}
+
+function switchVideoGroup(index) {
+  const groups = getEmbedGroups();
+  if (!groups[index]) return;
+  if (currentGroupIndex === index) return;
+
+  currentGroupIndex = index;
+  currentServerIndex = 0;
+  renderVideoGroupButtons(groups);
+  renderServerButtons(groups[index]);
+  renderVideoPlayer();
+}
+
 // Switch server
 function switchServer(index) {
+  const groups = getEmbedGroups();
+  const activeGroup = groups[currentGroupIndex] || [];
+  if (!activeGroup[index] || currentServerIndex === index) return;
+
   currentServerIndex = index;
 
   // Update active button
@@ -512,6 +676,92 @@ function renderVideoDetails() {
 
   videoDetails.style.display = "block";
   attachTagHandlers();
+}
+
+function renderVideoImages() {
+  const section = document.getElementById("videoImages");
+  const grid = document.getElementById("videoImagesGrid");
+  if (!section || !grid) return;
+
+  grid.innerHTML = "";
+  const normalized = Array.isArray(currentVideo?.imageUrls)
+    ? currentVideo.imageUrls
+        .map((url) =>
+          typeof url === "string" ? normalizeB2(url.trim()) : "",
+        )
+        .filter(Boolean)
+    : [];
+  const unique = Array.from(new Set(normalized));
+  if (!unique.length) {
+    section.style.display = "none";
+    return;
+  }
+
+  grid.innerHTML = unique
+    .map((url, index) => {
+      const finalUrl = absUrl(url);
+      return `
+        <a href="${finalUrl}" target="_blank" rel="noopener" aria-label="Ảnh kèm theo ${index + 1}">
+          <img src="${finalUrl}" alt="Ảnh kèm theo ${index + 1}" loading="lazy">
+        </a>
+      `;
+    })
+    .join("");
+
+  section.style.display = "block";
+  setupImageModal();
+  grid.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const href = link.getAttribute("href");
+      if (href) openImageModal(href);
+    });
+  });
+}
+
+function setupImageModal() {
+  if (imageModalSetupDone) return;
+
+  imageModalEl = document.getElementById("imageModal");
+  imageModalImg = document.getElementById("imageModalImg");
+  if (!imageModalEl || !imageModalImg) return;
+
+  imageModalSetupDone = true;
+  imageModalEl.querySelectorAll("[data-modal-close]").forEach((el) => {
+    el.addEventListener("click", closeImageModal);
+  });
+  imageModalEl.addEventListener("click", (event) => {
+    if (event.target === imageModalEl) closeImageModal();
+  });
+  document.addEventListener("keydown", handleImageModalKeydown);
+}
+
+function openImageModal(src) {
+  setupImageModal();
+  if (!imageModalEl || !imageModalImg) return;
+
+  imageModalImg.src = src;
+  imageModalEl.classList.add("is-open");
+  imageModalEl.setAttribute("aria-hidden", "false");
+  if (document.body) document.body.classList.add("modal-open");
+  imageModalIsOpen = true;
+}
+
+function closeImageModal() {
+  if (!imageModalEl || !imageModalIsOpen) return;
+
+  imageModalEl.classList.remove("is-open");
+  imageModalEl.setAttribute("aria-hidden", "true");
+  if (imageModalImg) imageModalImg.src = "";
+  if (document.body) document.body.classList.remove("modal-open");
+  imageModalIsOpen = false;
+}
+
+function handleImageModalKeydown(event) {
+  if (!imageModalIsOpen) return;
+  if (event.key === "Escape") {
+    closeImageModal();
+  }
 }
 
 function attachTagHandlers() {

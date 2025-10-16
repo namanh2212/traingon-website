@@ -105,6 +105,8 @@ async function ensureDatabase() {
           id TEXT PRIMARY KEY,
           title TEXT NOT NULL,
           embedUrls TEXT DEFAULT '[]',
+          secondaryEmbedUrls TEXT DEFAULT '[]',
+          imageUrls TEXT DEFAULT '[]',
           thumbnail TEXT,
           duration TEXT,
           category TEXT,
@@ -125,6 +127,24 @@ async function ensureDatabase() {
       database.exec(
         "CREATE INDEX IF NOT EXISTS idx_videos_order ON videos(orderIndex)",
       );
+      try {
+        const columns = database
+          .prepare("PRAGMA table_info(videos)")
+          .all()
+          .map((col) => col.name);
+        if (!columns.includes("imageUrls")) {
+          database.exec(
+            "ALTER TABLE videos ADD COLUMN imageUrls TEXT DEFAULT '[]'",
+          );
+        }
+        if (!columns.includes("secondaryEmbedUrls")) {
+          database.exec(
+            "ALTER TABLE videos ADD COLUMN secondaryEmbedUrls TEXT DEFAULT '[]'",
+          );
+        }
+      } catch (err) {
+        console.error("Ensure optional columns error:", err);
+      }
       dbInstance = database;
       await migrateFromJsonIfNeeded(database);
       return database;
@@ -180,6 +200,8 @@ async function readVideos() {
     id: String(row.id),
     title: row.title || "",
     embedUrls: safeParseJson(row.embedUrls),
+    secondaryEmbedUrls: safeParseJson(row.secondaryEmbedUrls),
+    imageUrls: safeParseJson(row.imageUrls),
     thumbnail: row.thumbnail || "",
     duration: row.duration || "",
     category: row.category || "",
@@ -201,15 +223,17 @@ async function writeVideos(videos) {
     database.exec("DELETE FROM videos");
     const insert = database.prepare(`
       INSERT INTO videos (
-        id, title, embedUrls, thumbnail, duration, category, tags, notes,
+        id, title, embedUrls, secondaryEmbedUrls, imageUrls, thumbnail, duration, category, tags, notes,
         downloadLink, views, published, createdAt, updatedAt, orderIndex, sortOrder
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     videos.forEach((video, index) => {
       insert.run(
         String(video.id),
         video.title || "",
         JSON.stringify(video.embedUrls ?? []),
+        JSON.stringify(video.secondaryEmbedUrls ?? []),
+        JSON.stringify(video.imageUrls ?? []),
         video.thumbnail || "",
         video.duration || "",
         video.category || "",
@@ -827,6 +851,8 @@ app.post(
         tags,
         notes,
         downloadLink,
+        secondaryEmbedUrls,
+        imageUrls,
       } = req.body;
 
       // ⬅️ THÊM 1 ĐOẠN NGẮN NGAY Ở ĐÂY: tính max orderIndex hiện có
@@ -839,6 +865,8 @@ app.post(
         id: Date.now().toString(),
         title,
         embedUrls: JSON.parse(embedUrls || "[]"),
+        secondaryEmbedUrls: JSON.parse(secondaryEmbedUrls || "[]"),
+        imageUrls: JSON.parse(imageUrls || "[]"),
         thumbnail: req.file ? `/uploads/${req.file.filename}` : thumbnailUrl,
         duration,
         category: category || "other",
@@ -884,12 +912,16 @@ app.put(
         notes,
         downloadLink,
         published,
+        secondaryEmbedUrls,
+        imageUrls,
       } = req.body;
 
       videos[idx] = {
         ...videos[idx],
         title,
         embedUrls: JSON.parse(embedUrls || "[]"),
+        secondaryEmbedUrls: JSON.parse(secondaryEmbedUrls || "[]"),
+        imageUrls: JSON.parse(imageUrls || "[]"),
         thumbnail: req.file
           ? `/uploads/${req.file.filename}`
           : thumbnailUrl || videos[idx].thumbnail,

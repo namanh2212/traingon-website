@@ -91,6 +91,12 @@
               <span style="font-size: 1.1rem; line-height: 1">←</span> Home
             </a>
 
+            <!-- Video Selection -->
+            <div
+              id="videoGroupButtons"
+              class="video-group-buttons"
+              style="display: none"
+            ></div>
             <!-- Server Selection -->
             <div
               id="serverButtons"
@@ -133,6 +139,43 @@
             <!-- Video Details -->
             <div id="videoDetails" class="video-details" style="display: none">
               <!-- Content will be loaded by JS -->
+            </div>
+
+            <section
+              id="videoImages"
+              class="video-images"
+              style="display: none"
+              aria-live="polite"
+            >
+              <h2 class="video-images-title">Photos</h2>
+              <div id="videoImagesGrid" class="video-images-grid"></div>
+            </section>
+
+            <div
+              id="imageModal"
+              class="image-modal"
+              aria-hidden="true"
+              role="dialog"
+              aria-modal="true"
+            >
+              <div class="image-modal-backdrop" data-modal-close></div>
+              <div class="image-modal-content">
+                <button
+                  type="button"
+                  id="imageModalClose"
+                  class="image-modal-close"
+                  data-modal-close
+                  aria-label="Đóng ảnh"
+                >
+                  ×
+                </button>
+                <img
+                  id="imageModalImg"
+                  src=""
+                  alt="Ảnh xem chi tiết"
+                  loading="lazy"
+                />
+              </div>
             </div>
 
             <section

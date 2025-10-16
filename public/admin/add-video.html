@@ -81,6 +81,61 @@
                 </div>
               </div>
 
+              <!-- Secondary Embed URLs -->
+              <div class="form-group full-width">
+                <div class="embed-section-header">
+                  <label class="form-label">Video 2 (tùy chọn)</label>
+                  <button
+                    type="button"
+                    id="toggleSecondaryEmbed"
+                    class="btn-secondary embed-toggle-btn"
+                  >
+                    + Thêm Video 2
+                  </button>
+                </div>
+                <div
+                  id="secondaryEmbedSection"
+                  class="embed-secondary"
+                  data-enabled="false"
+                  style="display: none"
+                >
+                  <div class="embed-options">
+                    <label class="radio-label">
+                      <input
+                        type="radio"
+                        name="secondaryEmbedCount"
+                        value="1"
+                        checked
+                      />
+                      <span>1 link</span>
+                    </label>
+                    <label class="radio-label">
+                      <input
+                        type="radio"
+                        name="secondaryEmbedCount"
+                        value="2"
+                      />
+                      <span>2 link</span>
+                    </label>
+                    <label class="radio-label">
+                      <input
+                        type="radio"
+                        name="secondaryEmbedCount"
+                        value="3"
+                      />
+                      <span>3 link</span>
+                    </label>
+                  </div>
+                  <div
+                    id="secondaryEmbedInputs"
+                    class="embed-inputs"
+                  ></div>
+                  <div class="form-hint">
+                    Tùy chọn, chỉ thêm khi video này có phần 2.
+                  </div>
+                </div>
+              </div>
+
               <!-- Thumbnail -->
               <div class="form-group full-width">
                 <label class="form-label required">Thumbnail</label>
@@ -148,6 +203,23 @@
                     class="thumbnail-preview"
                   ></div>
                 </div>
+              </div>
+
+              <!-- Additional Images -->
+              <div class="form-group full-width">
+                <label class="form-label">Ảnh bổ sung (tùy chọn)</label>
+                <div class="form-hint image-links-hint">
+                  Nhập link ảnh (Backblaze, Imgur...). Link Backblaze sẽ tự đổi
+                  sang b2.traingon.top và hiển thị preview.
+                </div>
+                <div id="imageLinksContainer" class="image-links"></div>
+                <button
+                  type="button"
+                  id="addImageLinkBtn"
+                  class="btn-secondary image-link-add-btn"
+                >
+                  + Thêm ảnh
+                </button>
               </div>
 
               <!-- Duration -->

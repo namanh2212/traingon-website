@@ -882,6 +882,30 @@ body {
   position: relative;
 }
 
+.embed-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.embed-toggle-btn {
+  white-space: nowrap;
+  padding: 0.45rem 1.1rem;
+}
+
+.embed-secondary {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.embed-secondary .embed-options {
+  margin-bottom: 1rem;
+}
+
 /* Thumbnail Upload */
 .thumbnail-upload {
   margin-top: 1rem;
@@ -932,6 +956,88 @@ body {
   max-height: 120px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.image-links {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.image-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.image-link-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.image-link-preview {
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+.image-link-preview img {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.image-link-preview-placeholder,
+.image-link-preview-error {
+  color: #a7a7b3;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.image-link-preview-error {
+  color: #ff6b6b;
+}
+
+.image-link-remove {
+  align-self: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #f2f3ff;
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.image-link-remove:hover {
+  background: rgba(255, 71, 87, 0.15);
+  border-color: rgba(255, 71, 87, 0.5);
+  color: #ff6b6b;
+}
+
+.image-link-add-btn {
+  margin-top: 0.75rem;
+}
+
+@media (max-width: 768px) {
+  .image-link-row {
+    grid-template-columns: 1fr;
+  }
+  .image-link-remove {
+    width: 100%;
+  }
 }
 
 .preview-info {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Admin Dashboard - Traingon.top</title>
-    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/admin.css?v=1" />
     <meta name="robots" content="noindex, nofollow" />
   </head>
   <body>
@@ -172,7 +172,17 @@
         </div>
 
         <!-- Announcement Manager -->
-        <section class="announcement-panel">
+        <div class="announcement-toggle-wrapper">
+          <button
+            type="button"
+            id="announcementToggle"
+            class="btn-secondary announcement-toggle"
+            aria-expanded="false"
+          >
+            Thông báo
+          </button>
+        </div>
+        <section id="announcementPanel" class="announcement-panel" hidden>
           <div class="announcement-panel-header">
             <div>
               <h2>Thông báo nổi bật</h2>
@@ -193,7 +203,7 @@
               ></textarea>
             </div>
             <div class="announcement-form-row">
-              <div class="form-group">
+              <div class="form-group duration-group">
                 <label for="announcementDuration">Thời gian hiển thị</label>
                 <div class="duration-input">
                   <input
@@ -210,7 +220,7 @@
                 </div>
               </div>
               <button type="submit" class="btn-primary send-announcement">
-                <span>Gửi thông báo</span>
+                <span>Gửi</span>
               </button>
             </div>
           </form>
@@ -268,7 +278,7 @@
 
     <!-- Script section -->
     <script src="/js/auth.js"></script>
-    <script src="/js/admin.js?v=75"></script>
+    <script src="/js/admin.js?v=1"></script>
     <script>
       document.addEventListener("DOMContentLoaded", async () => {
         const ok = await requireAuth();

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Thêm Video - Admin</title>
-    <link rel="stylesheet" href="/css/admin.css" />
+    <link rel="stylesheet" href="/css/admin.css?v=1" />
     <meta name="robots" content="noindex, nofollow" />
   </head>
   <body>
@@ -60,79 +60,50 @@
 
               <!-- Embed URLs -->
               <div class="form-group full-width">
-                <label class="form-label required">Embed URL</label>
-                <div class="embed-options">
-                  <label class="radio-label">
-                    <input type="radio" name="embedCount" value="1" checked />
-                    <span>1 link</span>
-                  </label>
-                  <label class="radio-label">
-                    <input type="radio" name="embedCount" value="2" />
-                    <span>2 link</span>
-                  </label>
-                  <label class="radio-label">
-                    <input type="radio" name="embedCount" value="3" />
-                    <span>3 link</span>
-                  </label>
+                <div class="embed-section-header">
+                  <label class="form-label required">Embed URL</label>
+                  <button
+                    type="button"
+                    id="addPrimaryEmbedBtn"
+                    class="btn-secondary embed-add-btn"
+                  >
+                    + Thêm link
+                  </button>
                 </div>
-
-                <div id="embedInputs" class="embed-inputs">
-                  <!-- Will be populated by JS -->
+                <div class="form-hint">
+                  Nhập link embed (Mixdrop, Streamtape, Backblaze...). Link
+                  Backblaze sẽ tự đổi sang b2.traingon.top.
                 </div>
+                <div id="embedInputs" class="embed-inputs"></div>
               </div>
 
               <!-- Secondary Embed URLs -->
               <div class="form-group full-width">
                 <div class="embed-section-header">
-                  <label class="form-label">Video 2 (tùy chọn)</label>
+                  <label class="form-label">Video phụ (tùy chọn)</label>
                   <button
                     type="button"
-                    id="toggleSecondaryEmbed"
-                    class="btn-secondary embed-toggle-btn"
+                    id="addSecondaryGroupBtn"
+                    class="btn-secondary embed-add-btn"
                   >
-                    + Thêm Video 2
+                    + Thêm Video phụ
                   </button>
                 </div>
-                <div
-                  id="secondaryEmbedSection"
-                  class="embed-secondary"
-                  data-enabled="false"
-                  style="display: none"
-                >
-                  <div class="embed-options">
-                    <label class="radio-label">
-                      <input
-                        type="radio"
-                        name="secondaryEmbedCount"
-                        value="1"
-                        checked
-                      />
-                      <span>1 link</span>
-                    </label>
-                    <label class="radio-label">
-                      <input
-                        type="radio"
-                        name="secondaryEmbedCount"
-                        value="2"
-                      />
-                      <span>2 link</span>
-                    </label>
-                    <label class="radio-label">
-                      <input
-                        type="radio"
-                        name="secondaryEmbedCount"
-                        value="3"
-                      />
-                      <span>3 link</span>
-                    </label>
+                <div class="form-hint">
+                  Dùng khi video có nhiều phần. Mỗi video phụ có thể chứa nhiều
+                  link embed. Link Backblaze sẽ tự đổi sang b2.traingon.top.
+                </div>
+                <div id="secondaryEmbedSection" class="embed-secondary">
+                  <div
+                    id="secondaryGroupsEmpty"
+                    class="embed-groups-empty"
+                  >
+                    Chưa thêm video phụ nào.
                   </div>
                   <div
-                    id="secondaryEmbedInputs"
-                    class="embed-inputs"
+                    id="secondaryGroupsContainer"
+                    class="embed-groups"
                   ></div>
-                  <div class="form-hint">
-                    Tùy chọn, chỉ thêm khi video này có phần 2.
-                  </div>
                 </div>
               </div>
 
@@ -324,7 +295,7 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <script src="/js/auth.js"></script>
-    <script src="/js/admin.js?v=9"></script>
+    <script src="/js/admin.js?v=1"></script>
     <script>
       document.addEventListener("DOMContentLoaded", async () => {
         const ok = await requireAuth();

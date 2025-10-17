@@ -208,13 +208,26 @@ function sanitizeEmbedList(list) {
     .filter(Boolean);
   return Array.from(new Set(cleaned));
 }
+function sanitizeEmbedGroups(value) {
+  if (!Array.isArray(value) || !value.length) return [];
+  const hasNested = value.some((item) => Array.isArray(item));
+  if (hasNested) {
+    return value
+      .map((item) =>
+        Array.isArray(item) ? sanitizeEmbedList(item) : [],
+      )
+      .filter((group) => group.length);
+  }
+  const singleGroup = sanitizeEmbedList(value);
+  return singleGroup.length ? [singleGroup] : [];
+}
 function getEmbedGroups() {
   if (!currentVideo) return [];
   const groups = [];
   const primary = sanitizeEmbedList(currentVideo.embedUrls);
   if (primary.length) groups.push(primary);
-  const secondary = sanitizeEmbedList(currentVideo.secondaryEmbedUrls);
-  if (secondary.length) groups.push(secondary);
+  const extra = sanitizeEmbedGroups(currentVideo.secondaryEmbedUrls);
+  if (extra.length) groups.push(...extra);
   return groups;
 }
 function isoDate(s) {

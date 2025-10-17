@@ -66,6 +66,8 @@ function initAnnouncementManager() {
   const list = document.getElementById("announcementList");
   if (!form || !list) return;
 
+  const panel = document.getElementById("announcementPanel");
+  const toggle = document.getElementById("announcementToggle");
   const messageInput = document.getElementById("announcementMessage");
   const durationInput = document.getElementById("announcementDuration");
   const unitSelect = document.getElementById("announcementUnit");
@@ -81,6 +83,53 @@ function initAnnouncementManager() {
       submitBtn.classList.remove("is-loading");
     }
   };
+
+  let announcementsLoaded = false;
+
+  const updateToggleState = (expanded) => {
+    if (!toggle) return;
+    toggle.setAttribute("aria-expanded", expanded ? "true" : "false");
+    toggle.classList.toggle("is-active", expanded);
+    toggle.textContent = expanded ? "Ẩn thông báo" : "Thông báo";
+  };
+
+  const closePanel = () => {
+    if (!panel) return;
+    panel.setAttribute("hidden", "true");
+    updateToggleState(false);
+    stopAdminAnnouncementCountdown();
+  };
+
+  const openPanel = async () => {
+    if (!panel) return;
+    panel.removeAttribute("hidden");
+    updateToggleState(true);
+    if (!announcementsLoaded) {
+      await loadAdminAnnouncements();
+      announcementsLoaded = true;
+    } else {
+      loadAdminAnnouncements();
+    }
+  };
+
+  if (toggle && panel) {
+    updateToggleState(!panel.hasAttribute("hidden"));
+    toggle.addEventListener("click", async () => {
+      if (panel.hasAttribute("hidden")) {
+        await openPanel();
+      } else {
+        closePanel();
+      }
+    });
+
+    if (!panel.hasAttribute("hidden")) {
+      openPanel();
+    }
+  } else {
+    loadAdminAnnouncements().finally(() => {
+      announcementsLoaded = true;
+    });
+  }
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -126,6 +175,7 @@ function initAnnouncementManager() {
       form.reset();
       if (durationInput) durationInput.value = "12";
       await loadAdminAnnouncements();
+      announcementsLoaded = true;
     } catch (error) {
       console.error("Submit announcement error:", error);
       if (typeof showToast === "function")
@@ -135,8 +185,6 @@ function initAnnouncementManager() {
       setSubmitting(false);
     }
   });
-
-  loadAdminAnnouncements();
 }
 
 async function loadAdminAnnouncements() {
@@ -441,36 +489,201 @@ function normalizeB2(url) {
   }
 }
 
-// Tự động chuẩn hoá embedUrl1 khi form đang ở chế độ 1 link
-function attachEmbedNormalizationIfSingle(group = "primary") {
-  const selectors =
-    group === "secondary"
-      ? {
-          input: 'input[name="secondaryEmbedUrl1"]',
-          count: 'input[name="secondaryEmbedCount"]',
-        }
-      : {
-          input: 'input[name="embedUrl1"]',
-          count: 'input[name="embedCount"]',
-        };
-  const input = document.querySelector(selectors.input);
+function attachEmbedNormalization(input) {
   if (!input) return;
-
   const handler = () => {
-    const embedCount = parseInt(
-      document.querySelector(`${selectors.count}:checked`)?.value || "1",
-    );
-    if (embedCount !== 1) return; // chỉ auto khi đúng 1 URL
-
     const raw = (input.value || "").trim();
     if (!raw) return;
-
     const norm = normalizeB2(raw);
-    input.value = norm;
+    if (norm !== raw) input.value = norm;
+  };
+  ["blur", "change"].forEach((ev) => input.addEventListener(ev, handler));
+  input.addEventListener("paste", () => setTimeout(handler, 0));
+}
+
+function createEmbedListController({
+  container,
+  addButton,
+  namePrefix,
+  placeholderPrefix = "Server",
+  min = 1,
+  max = 10,
+  requiredFirst = true,
+}) {
+  if (!container || !namePrefix) return null;
+  const settings = {
+    container,
+    addButton,
+    namePrefix,
+    placeholderPrefix,
+    min: Math.max(0, Number(min) || 0),
+    max: Math.max(0, Number(max) || 0),
+    requiredFirst: Boolean(requiredFirst),
   };
 
-  ["blur", "change"].forEach((ev) => input.addEventListener(ev, handler));
-  input.addEventListener("paste", () => setTimeout(handler, 0)); // đợi nội dung dán xong rồi chuẩn hoá
+  const buildGroup = (value = "") => {
+    const group = document.createElement("div");
+    group.className = "embed-input-group";
+
+    const content = document.createElement("div");
+    content.className = "embed-input-content";
+
+    const input = document.createElement("input");
+    input.type = "url";
+    input.className = "form-input";
+    input.autocomplete = "off";
+    content.appendChild(input);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "embed-remove-btn";
+    removeBtn.textContent = "Xóa";
+    removeBtn.addEventListener("click", () => {
+      const groups = settings.container.querySelectorAll(".embed-input-group");
+      if (groups.length <= Math.max(1, settings.min)) {
+        input.value = "";
+        input.focus();
+        return;
+      }
+      group.remove();
+      renumber();
+    });
+    content.appendChild(removeBtn);
+
+    group.appendChild(content);
+
+    const error = document.createElement("div");
+    error.className = "form-error";
+    group.appendChild(error);
+
+    if (typeof value === "string" && value.trim()) {
+      const norm = normalizeB2(value.trim());
+      input.value = norm;
+    }
+    attachEmbedNormalization(input);
+    return group;
+  };
+
+  const renumber = () => {
+    const groups = settings.container.querySelectorAll(".embed-input-group");
+    groups.forEach((group, idx) => {
+      const input = group.querySelector('input[type="url"]');
+      const error = group.querySelector(".form-error");
+      const removeBtn = group.querySelector(".embed-remove-btn");
+      const index = idx + 1;
+      if (input) {
+        input.name = `${settings.namePrefix}${index}`;
+        input.placeholder = `${settings.placeholderPrefix} ${index}`;
+        if (settings.requiredFirst) input.required = idx === 0;
+      }
+      if (error) error.id = `${settings.namePrefix}${index}Error`;
+      if (removeBtn) {
+        const groupsCount = groups.length;
+        const canRemove =
+          groupsCount > Math.max(1, settings.min) || settings.min === 0;
+        removeBtn.classList.toggle(
+          "hidden",
+          !canRemove || (settings.requiredFirst && idx === 0 && groupsCount <= settings.min),
+        );
+        removeBtn.disabled =
+          !canRemove || (settings.requiredFirst && idx === 0 && groupsCount <= settings.min);
+      }
+    });
+  };
+
+  const ensureMinimum = () => {
+    const existing = settings.container.querySelectorAll(".embed-input-group")
+      .length;
+    if (existing >= Math.max(1, settings.min)) return;
+    const needed = Math.max(1, settings.min) - existing;
+    for (let i = 0; i < needed; i++) {
+      settings.container.appendChild(buildGroup(""));
+    }
+  };
+
+  const addGroup = (value = "") => {
+    const current = settings.container.querySelectorAll(".embed-input-group")
+      .length;
+    if (settings.max && current >= settings.max) {
+      if (typeof showToast === "function")
+        showToast(`Tối đa ${settings.max} link embed`, "error");
+      return null;
+    }
+    const group = buildGroup(value);
+    settings.container.appendChild(group);
+    renumber();
+    return group;
+  };
+
+  if (settings.addButton) {
+    if (settings.addButton.__embedHandler) {
+      settings.addButton.removeEventListener(
+        "click",
+        settings.addButton.__embedHandler,
+      );
+    }
+    settings.addButton.__embedHandler = () => {
+      const group = addGroup("");
+      if (group) {
+        const input = group.querySelector('input[type="url"]');
+        if (input) input.focus();
+      }
+    };
+    settings.addButton.addEventListener(
+      "click",
+      settings.addButton.__embedHandler,
+    );
+  }
+
+  const controller = {
+    render(values = []) {
+      settings.container.innerHTML = "";
+      const arr = Array.isArray(values)
+        ? values.filter((v) => typeof v === "string" && v.trim())
+        : [];
+      if (arr.length) {
+        arr.forEach((value) => settings.container.appendChild(buildGroup(value)));
+      }
+      ensureMinimum();
+      renumber();
+    },
+    add(value = "") {
+      const group = addGroup(value);
+      if (group) renumber();
+    },
+    clear() {
+      settings.container.innerHTML = "";
+      ensureMinimum();
+      renumber();
+    },
+    getValues({ unique = true } = {}) {
+      const values = [];
+      const seen = new Set();
+      settings.container
+        .querySelectorAll('input[type="url"]')
+        .forEach((input) => {
+          const raw = (input.value || "").trim();
+          if (!raw) return;
+          const norm = normalizeB2(raw);
+          if (norm !== raw) input.value = norm;
+          if (!unique || !seen.has(norm)) {
+            if (unique) seen.add(norm);
+            values.push(norm);
+          }
+        });
+      return values;
+    },
+    focusFirst() {
+      const firstInput = settings.container.querySelector(
+        '.embed-input-group input[type="url"]',
+      );
+      if (firstInput) firstInput.focus();
+    },
+  };
+
+  settings.container.__controller = controller;
+  controller.render([]);
+  return controller;
 }
 
 // Loading states - CHỈ CHO DASHBOARD
@@ -671,22 +884,7 @@ function populateEditForm(video) {
   const titleInput = document.getElementById("title");
   if (titleInput) titleInput.value = video.title || "";
 
-  const embedUrls = video.embedUrls || [];
-  const embedCount = Math.max(1, embedUrls.length);
-  const embedCountRadio = document.querySelector(
-    `input[name="embedCount"][value="${embedCount}"]`,
-  );
-  if (embedCountRadio) embedCountRadio.checked = true;
-
-  updateEmbedInputsForEdit(embedCount);
-  setTimeout(() => {
-    embedUrls.forEach((url, index) => {
-      const input = document.querySelector(
-        `input[name="embedUrl${index + 1}"]`,
-      );
-      if (input) input.value = url;
-    });
-  }, 100);
+  initEmbedInputs(video.embedUrls || []);
 
   const thumbnailUrlInput = document.getElementById("thumbnailUrlInput");
   if (video.thumbnail) {
@@ -730,7 +928,6 @@ function populateEditForm(video) {
   initCategoryHandling();
   initEditTagsHandling();
   initNotesCounter();
-  initEmbedInputsForEdit();
 
   const form = document.getElementById("updateVideoForm");
   if (form) {
@@ -741,48 +938,6 @@ function populateEditForm(video) {
   window.currentEditVideoId = video.id;
 }
 
-function initEmbedInputsForEdit() {
-  const embedOptions = document.querySelectorAll('input[name="embedCount"]');
-  embedOptions.forEach((option) => {
-    option.addEventListener("change", (e) => {
-      const count = parseInt(e.target.value);
-
-      const currentValues = [];
-      for (let i = 1; i <= 3; i++) {
-        const input = document.querySelector(`input[name="embedUrl${i}"]`);
-        if (input && input.value.trim()) currentValues.push(input.value.trim());
-      }
-
-      updateEmbedInputsForEdit(count);
-
-      setTimeout(() => {
-        currentValues.forEach((value, index) => {
-          if (index < count) {
-            const input = document.querySelector(
-              `input[name="embedUrl${index + 1}"]`,
-            );
-            if (input) input.value = value;
-          }
-        });
-      }, 50);
-    });
-  });
-}
-function updateEmbedInputsForEdit(count) {
-  const embedInputs = document.getElementById("embedInputs");
-  if (!embedInputs) return;
-  let html = "";
-  for (let i = 1; i <= count; i++) {
-    html += `
-      <div class="embed-input-group">
-        <input type="url" name="embedUrl${i}" placeholder="URL Mixdrop/Streamtape... Server ${i}" ${i === 1 ? "required" : ""} class="form-input">
-        <div class="form-error" id="embedUrl${i}Error"></div>
-      </div>`;
-  }
-  embedInputs.innerHTML = html;
-  // 🆕 gắn auto-normalize khi đang ở chế độ 1 link
-  attachEmbedNormalizationIfSingle("primary");
-}
 function handleEditFormSubmit(e) {
   e.preventDefault();
   submitEditVideoForm(window.currentEditVideoId);
@@ -856,45 +1011,25 @@ function initEditTagsHandling() {
 async function submitEditVideoForm(videoId) {
   const form = document.getElementById("updateVideoForm");
   if (!form) return;
+  if (!form.reportValidity()) return;
 
   const formData = new FormData(form);
 
-  // embedUrls
-  const embedUrls = [];
-  const embedCount = parseInt(
-    document.querySelector('input[name="embedCount"]:checked')?.value || "1",
-  );
-  for (let i = 1; i <= embedCount; i++) {
-    const input = document.querySelector(`input[name="embedUrl${i}"]`);
-    if (input && input.value.trim()) embedUrls.push(input.value.trim());
-  }
-  if (Array.isArray(embedUrls) && embedUrls.length === 1) {
-    const normalized = normalizeB2(embedUrls[0]);
-    embedUrls[0] = normalized;
-    const onlyInput = document.querySelector('input[name="embedUrl1"]');
-    if (onlyInput) onlyInput.value = normalized;
+  const embedInputsContainer = document.getElementById("embedInputs");
+  const primaryController = embedInputsContainer?.__controller || null;
+  const embedUrls = primaryController ? primaryController.getValues() : [];
+  if (!embedUrls.length) {
+    showToast("Vui lòng nhập ít nhất một embed URL", "error");
+    return;
   }
   formData.set("embedUrls", JSON.stringify(embedUrls));
 
   const secondarySection = document.getElementById("secondaryEmbedSection");
   const secondaryController = secondarySection?.__controller;
-  const secondaryEmbedUrls = [];
-  if (secondaryController?.isEnabled()) {
-    const rawSecondary = secondaryController.collectRawValues();
-    const inputs = secondarySection.querySelectorAll(
-      'input[name^="secondaryEmbedUrl"]',
-    );
-    const seen = new Set();
-    rawSecondary.forEach((raw, idx) => {
-      if (!raw) return;
-      const norm = normalizeB2(raw);
-      if (inputs[idx] && inputs[idx].value !== norm) inputs[idx].value = norm;
-      if (!seen.has(norm)) {
-        seen.add(norm);
-        secondaryEmbedUrls.push(norm);
-      }
-    });
-  }
+  const secondaryEmbedUrls =
+    secondaryController && typeof secondaryController.getValues === "function"
+      ? secondaryController.getValues()
+      : [];
   formData.set("secondaryEmbedUrls", JSON.stringify(secondaryEmbedUrls));
 
   const imageInputs = document.querySelectorAll(".image-link-input");
@@ -1137,36 +1272,31 @@ function updateStats(total) {
     lastUpdate.textContent = `Cập nhật: ${new Date().toLocaleString("vi-VN")}`;
 }
 
-// Embed inputs (add page)
-function initEmbedInputs() {
-  const embedOptions = document.querySelectorAll('input[name="embedCount"]');
-  const embedInputs = document.getElementById("embedInputs");
-  if (!embedInputs) return;
+// Embed inputs (add/edit)
+function initEmbedInputs(initialValues = []) {
+  const container = document.getElementById("embedInputs");
+  const addBtn = document.getElementById("addPrimaryEmbedBtn");
+  if (!container) return null;
 
-  embedOptions.forEach((option) => {
-    option.addEventListener("change", (e) => {
-      const count = parseInt(e.target.value);
-      updateEmbedInputs(count);
+  const controller =
+    container.__controller ||
+    createEmbedListController({
+      container,
+      addButton: addBtn,
+      namePrefix: "embedUrl",
+      placeholderPrefix: "URL Video - Server",
+      min: 1,
+      max: 12,
+      requiredFirst: true,
     });
-  });
 
-  updateEmbedInputs(1);
-}
-function updateEmbedInputs(count) {
-  const embedInputs = document.getElementById("embedInputs");
-  if (!embedInputs) return;
-  let html = "";
-  for (let i = 1; i <= count; i++) {
-    html += `
-      <div class="embed-input-group">
-        <input type="url" name="embedUrl${i}" placeholder="URL Mixdrop/Streamtape... Server ${i}" ${i === 1 ? "required" : ""} class="form-input">
-        <div class="form-error" id="embedUrl${i}Error"></div>
-      </div>`;
-  }
-  embedInputs.innerHTML = html;
+  if (!controller) return null;
 
-  // 🆕 gắn auto-normalize khi đang ở chế độ 1 link
-  attachEmbedNormalizationIfSingle("primary");
+  const values = Array.isArray(initialValues)
+    ? initialValues.filter((v) => typeof v === "string" && v.trim())
+    : [];
+  controller.render(values);
+  return controller;
 }
 
 // Thumbnail handling
@@ -1384,127 +1514,165 @@ function initImageLinkHandling(initialLinks = []) {
 
 function initSecondaryEmbedSection(initialLinks = []) {
   const section = document.getElementById("secondaryEmbedSection");
-  const toggleBtn = document.getElementById("toggleSecondaryEmbed");
-  const inputsContainer = document.getElementById("secondaryEmbedInputs");
-  if (!section || !toggleBtn || !inputsContainer) return null;
+  const addGroupBtn = document.getElementById("addSecondaryGroupBtn");
+  const groupsContainer = document.getElementById("secondaryGroupsContainer");
+  const emptyState = document.getElementById("secondaryGroupsEmpty");
+  if (!section || !addGroupBtn || !groupsContainer || !emptyState) return null;
 
-  const embedOptions = section.querySelectorAll(
-    'input[name="secondaryEmbedCount"]',
-  );
+  let sequence = 0;
+  const groups = [];
 
-  const collectValues = () => {
-    const values = [];
-    inputsContainer
-      .querySelectorAll('input[name^="secondaryEmbedUrl"]')
-      .forEach((input) => {
-        const raw = (input.value || "").trim();
-        if (raw) values.push(raw);
-      });
-    return values;
+  const normalizeInitial = (input) => {
+    if (!Array.isArray(input) || !input.length) return [];
+    const hasNested = input.some((item) => Array.isArray(item));
+    if (hasNested) {
+      return input
+        .map((item) =>
+          Array.isArray(item)
+            ? item
+                .map((url) =>
+                  typeof url === "string" ? url.trim() : "",
+                )
+                .filter(Boolean)
+            : [],
+        )
+        .filter((arr) => arr.length);
+    }
+    const single = input
+      .map((url) => (typeof url === "string" ? url.trim() : ""))
+      .filter(Boolean);
+    return single.length ? [single] : [];
   };
 
-  const updateInputs = (count, explicitValues) => {
-    const currentValues =
-      Array.isArray(explicitValues) && explicitValues.length
-        ? explicitValues
-        : collectValues();
-    let html = "";
-    for (let i = 1; i <= count; i++) {
-      html += `
-        <div class="embed-input-group">
-          <input type="url" name="secondaryEmbedUrl${i}" placeholder="URL Video 2 - Server ${i}" ${i === 1 ? "required" : ""} class="form-input">
-          <div class="form-error" id="secondaryEmbedUrl${i}Error"></div>
-        </div>`;
-    }
-    inputsContainer.innerHTML = html;
+  const syncEmptyState = () => {
+    emptyState.style.display = groups.length ? "none" : "block";
+  };
 
-    const inputs = inputsContainer.querySelectorAll(
-      'input[name^="secondaryEmbedUrl"]',
-    );
-    currentValues.slice(0, inputs.length).forEach((value, idx) => {
-      inputs[idx].value = value;
+  const refreshTitles = () => {
+    groups.forEach((group, idx) => {
+      group.title.textContent = `Video phụ #${idx + 1}`;
+    });
+  };
+
+  const removeGroup = (id) => {
+    const index = groups.findIndex((g) => g.id === id);
+    if (index === -1) return;
+    const [removed] = groups.splice(index, 1);
+    removed.el.remove();
+    refreshTitles();
+    syncEmptyState();
+  };
+
+  const createGroup = (values = []) => {
+    sequence += 1;
+    const id = `secondary_${Date.now()}_${sequence}`;
+    const wrapper = document.createElement("div");
+    wrapper.className = "embed-secondary-group";
+
+    const header = document.createElement("div");
+    header.className = "embed-group-header";
+
+    const titleEl = document.createElement("div");
+    titleEl.className = "embed-group-title";
+    header.appendChild(titleEl);
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "embed-group-remove";
+    removeBtn.textContent = "Xóa video";
+    header.appendChild(removeBtn);
+
+    wrapper.appendChild(header);
+
+    const inputsContainer = document.createElement("div");
+    inputsContainer.className = "embed-inputs";
+    wrapper.appendChild(inputsContainer);
+
+    const actions = document.createElement("div");
+    actions.className = "embed-inner-actions";
+    const addLinkBtn = document.createElement("button");
+    addLinkBtn.type = "button";
+    addLinkBtn.className = "btn-secondary embed-add-btn";
+    addLinkBtn.textContent = "+ Thêm link";
+    actions.appendChild(addLinkBtn);
+    wrapper.appendChild(actions);
+
+    groupsContainer.appendChild(wrapper);
+
+    const controller = createEmbedListController({
+      container: inputsContainer,
+      addButton: addLinkBtn,
+      namePrefix: `secondaryEmbedUrl_${sequence}_`,
+      placeholderPrefix: "URL Video phụ - Server",
+      min: 1,
+      max: 12,
+      requiredFirst: true,
     });
 
-    attachEmbedNormalizationIfSingle("secondary");
-  };
+    controller.render(values);
 
-  const setEnabled = (enabled, values) => {
-    if (enabled) {
-      section.dataset.enabled = "true";
-      section.style.display = "block";
-      toggleBtn.textContent = "Xóa Video 2";
-      const normalizedValues =
-        Array.isArray(values) && values.length
-          ? values.map((v) => normalizeB2(v))
-          : collectValues();
-      const selectedCount = parseInt(
-        section.querySelector('input[name="secondaryEmbedCount"]:checked')
-          ?.value || "1",
-      );
-      const count = Math.max(1, normalizedValues.length || selectedCount || 1);
-      const radio = section.querySelector(
-        `input[name="secondaryEmbedCount"][value="${count}"]`,
-      );
-      if (radio) radio.checked = true;
-      updateInputs(count, normalizedValues);
-    } else {
-      section.dataset.enabled = "false";
-      section.style.display = "none";
-      toggleBtn.textContent = "+ Thêm Video 2";
-      const defaultRadio = section.querySelector(
-        'input[name="secondaryEmbedCount"][value="1"]',
-      );
-      if (defaultRadio) defaultRadio.checked = true;
-      inputsContainer.innerHTML = "";
-    }
-  };
-
-  embedOptions.forEach((option) => {
-    if (option.__secondaryHandler) {
-      option.removeEventListener("change", option.__secondaryHandler);
-    }
-    option.__secondaryHandler = (e) => {
-      if (section.dataset.enabled !== "true") return;
-      const count = parseInt(e.target.value, 10);
-      updateInputs(count);
+    const groupData = {
+      id,
+      el: wrapper,
+      controller,
+      title: titleEl,
     };
-    option.addEventListener("change", option.__secondaryHandler);
-  });
 
-  if (toggleBtn.__secondaryHandler) {
-    toggleBtn.removeEventListener("click", toggleBtn.__secondaryHandler);
-  }
-  toggleBtn.__secondaryHandler = () => {
-    const enabled = section.dataset.enabled === "true";
-    if (enabled) setEnabled(false);
-    else setEnabled(true);
+    removeBtn.addEventListener("click", () => removeGroup(id));
+
+    groups.push(groupData);
+    refreshTitles();
+    syncEmptyState();
+    if (!values.length) controller.focusFirst();
+    return groupData;
   };
-  toggleBtn.addEventListener("click", toggleBtn.__secondaryHandler);
+
+  if (addGroupBtn.__secondaryHandler) {
+    addGroupBtn.removeEventListener("click", addGroupBtn.__secondaryHandler);
+  }
+  addGroupBtn.__secondaryHandler = () => {
+    createGroup();
+  };
+  addGroupBtn.addEventListener("click", addGroupBtn.__secondaryHandler);
 
   const controller = {
-    enable(values = []) {
-      setEnabled(true, values);
+    addGroup(values = []) {
+      return createGroup(values);
     },
-    disable() {
-      setEnabled(false);
+    clear() {
+      groups.forEach((group) => group.el.remove());
+      groups.length = 0;
+      sequence = 0;
+      syncEmptyState();
     },
-    isEnabled() {
-      return section.dataset.enabled === "true";
+    setGroups(list = []) {
+      controller.clear();
+      list.forEach((groupValues) => {
+        const normalized = Array.isArray(groupValues)
+          ? groupValues
+              .map((url) => (typeof url === "string" ? url.trim() : ""))
+              .filter(Boolean)
+          : [];
+        createGroup(normalized);
+      });
     },
-    collectRawValues() {
-      return controller.isEnabled() ? collectValues() : [];
+    getValues() {
+      return groups
+        .map((group) => group.controller.getValues())
+        .filter((arr) => Array.isArray(arr) && arr.length);
     },
-    updateCount(count, values) {
-      updateInputs(count, values);
+    count() {
+      return groups.length;
     },
   };
 
   section.__controller = controller;
 
-  if (Array.isArray(initialLinks) && initialLinks.length) {
-    controller.enable(initialLinks);
+  const initialGroups = normalizeInitial(initialLinks);
+  if (initialGroups.length) {
+    controller.setGroups(initialGroups);
   } else {
-    setEnabled(false);
+    syncEmptyState();
   }
 
   return controller;
@@ -1629,44 +1797,25 @@ function initNotesCounter() {
 async function submitVideoForm(saveAndNew = false) {
   const form = document.getElementById("addVideoForm");
   if (!form) return;
+  if (!form.reportValidity()) return;
 
   const formData = new FormData(form);
   const secondarySection = document.getElementById("secondaryEmbedSection");
   const secondaryController = secondarySection?.__controller;
 
-  const embedUrls = [];
-  const embedCount = parseInt(
-    document.querySelector('input[name="embedCount"]:checked')?.value || "1",
-  );
-  for (let i = 1; i <= embedCount; i++) {
-    const input = document.querySelector(`input[name="embedUrl${i}"]`);
-    if (input && input.value.trim()) embedUrls.push(input.value.trim());
-  }
-  if (Array.isArray(embedUrls) && embedUrls.length === 1) {
-    const normalized = normalizeB2(embedUrls[0]);
-    embedUrls[0] = normalized;
-    const onlyInput = document.querySelector('input[name="embedUrl1"]');
-    if (onlyInput) onlyInput.value = normalized;
+  const embedInputsContainer = document.getElementById("embedInputs");
+  const primaryController = embedInputsContainer?.__controller || null;
+  const embedUrls = primaryController ? primaryController.getValues() : [];
+  if (!embedUrls.length) {
+    showToast("Vui lòng nhập ít nhất một embed URL", "error");
+    return;
   }
   formData.set("embedUrls", JSON.stringify(embedUrls));
 
-  const secondaryEmbedUrls = [];
-  if (secondaryController?.isEnabled()) {
-    const rawSecondary = secondaryController.collectRawValues();
-    const inputs = secondarySection.querySelectorAll(
-      'input[name^="secondaryEmbedUrl"]',
-    );
-    const seen = new Set();
-    rawSecondary.forEach((raw, idx) => {
-      if (!raw) return;
-      const norm = normalizeB2(raw);
-      if (inputs[idx] && inputs[idx].value !== norm) inputs[idx].value = norm;
-      if (!seen.has(norm)) {
-        seen.add(norm);
-        secondaryEmbedUrls.push(norm);
-      }
-    });
-  }
+  const secondaryEmbedUrls =
+    secondaryController && typeof secondaryController.getValues === "function"
+      ? secondaryController.getValues()
+      : [];
   formData.set("secondaryEmbedUrls", JSON.stringify(secondaryEmbedUrls));
 
   const imageInputs = document.querySelectorAll(".image-link-input");
@@ -1736,14 +1885,8 @@ async function submitVideoForm(saveAndNew = false) {
             initImageLinkHandling();
           }
         }
-        const embedCount1 = document.querySelector(
-          'input[name="embedCount"][value="1"]',
-        );
-        if (embedCount1) {
-          embedCount1.checked = true;
-          updateEmbedInputs(1);
-        }
-        if (secondaryController) secondaryController.disable();
+        if (primaryController) primaryController.render([]);
+        if (secondaryController) secondaryController.clear();
         const thumbnailTypeUrl = document.querySelector(
           'input[name="thumbnailType"][value="url"]',
         );

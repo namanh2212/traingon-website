@@ -1265,6 +1265,92 @@ const siteOrigin = (req) => {
   return `${proto}://${host}`;
 };
 
+const normalizeHttpUrl = (input, origin) => {
+  if (!input) return null;
+  const trimmed = String(input).trim();
+  if (!trimmed) return null;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (/^\/\//.test(trimmed)) return `https:${trimmed}`;
+  if (/^[a-z]+:/i.test(trimmed)) return null;
+  if (trimmed.startsWith("/")) return `${origin}${trimmed}`;
+  const cleaned = trimmed.replace(/^\.\//, "").replace(/^\/+/, "");
+  if (!cleaned) return null;
+  return `${origin}/${cleaned}`;
+};
+
+const parseDurationSeconds = (value) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const seconds = Math.round(value);
+    return seconds > 0 ? seconds : null;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^\d+$/.test(trimmed)) {
+      const seconds = Number(trimmed);
+      return Number.isFinite(seconds) && seconds > 0 ? seconds : null;
+    }
+    if (trimmed.includes(":")) {
+      const segments = trimmed.split(":").map((segment) => Number(segment));
+      if (segments.every((n) => Number.isFinite(n))) {
+        let seconds = 0;
+        for (let i = 0; i < segments.length; i += 1) {
+          const idx = segments.length - 1 - i;
+          seconds += segments[idx] * Math.pow(60, i);
+        }
+        return seconds > 0 ? seconds : null;
+      }
+    }
+  }
+  return null;
+};
+
+const toIsoDateTime = (value) => {
+  if (!value) return null;
+  try {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  } catch {
+    return null;
+  }
+};
+
+const collectEmbedCandidates = (video) => {
+  const items = [];
+  const pushCandidate = (candidate) => {
+    if (typeof candidate !== "string") return;
+    const trimmed = candidate.trim();
+    if (trimmed) items.push(trimmed);
+  };
+  if (Array.isArray(video.embedUrls)) {
+    video.embedUrls.forEach(pushCandidate);
+  }
+  if (Array.isArray(video.secondaryEmbedUrls)) {
+    for (const entry of video.secondaryEmbedUrls) {
+      if (Array.isArray(entry)) {
+        entry.forEach(pushCandidate);
+      } else {
+        pushCandidate(entry);
+      }
+    }
+  }
+  return items;
+};
+
+const pickThumbnailCandidate = (video) => {
+  if (typeof video.thumbnail === "string" && video.thumbnail.trim()) {
+    return video.thumbnail.trim();
+  }
+  if (Array.isArray(video.imageUrls)) {
+    for (const img of video.imageUrls) {
+      if (typeof img === "string" && img.trim()) {
+        return img.trim();
+      }
+    }
+  }
+  return null;
+};
+
 // Trang SEO cho từng video: có <title> + JSON-LD, người dùng sẽ được redirect sang video.html
 // === SEO-first watch page: render full player (no JS redirect) ===
 
@@ -1348,6 +1434,100 @@ app.get("/sitemap.xml", async (req, res) => {
   } catch (e) {
     console.error(e);
     res.type("text/plain").status(500).send("sitemap error");
+  }
+});
+
+app.get("/sitemap-video.xml", async (req, res) => {
+  try {
+    const origin = siteOrigin(req);
+    const videos = await readVideos();
+    const publishedVideos = videos.filter((v) => v && v.id && v.published !== false);
+
+    const entries = [];
+    for (const video of publishedVideos) {
+      const slug =
+        slugify(video.title || video.id) || slugify(video.id) || String(video.id || "");
+      const pageUrl = `${origin}/video/${slug}`;
+      const thumbnailCandidate = pickThumbnailCandidate(video);
+      const thumbnailUrl =
+        normalizeHttpUrl(thumbnailCandidate, origin) || `${origin}/favicon.png`;
+
+      const titleBase = (video.title || video.id || "Video").toString().trim();
+      const safeTitle = titleBase ? titleBase.slice(0, 100) : "Video";
+      const notesText = typeof video.notes === "string" ? video.notes : "";
+      const descriptionSource = notesText.replace(/\s+/g, " ").trim() || safeTitle;
+      const safeDescription = descriptionSource.slice(0, 2048);
+
+      const downloadUrl = normalizeHttpUrl(video.downloadLink, origin);
+      const embedCandidates = collectEmbedCandidates(video)
+        .map((url) => normalizeHttpUrl(url, origin))
+        .filter(Boolean);
+      const fileCandidate = embedCandidates.find((url) =>
+        /\.(mp4|m3u8|webm|mov)(\?|$)/i.test(url),
+      );
+      const contentLoc = downloadUrl || fileCandidate || null;
+      const playerLoc = embedCandidates.find((url) => url !== contentLoc) || embedCandidates[0] || null;
+
+      if (!contentLoc && !playerLoc) continue;
+
+      const durationSeconds = parseDurationSeconds(video.duration);
+      const publicationDate = toIsoDateTime(video.updatedAt || video.createdAt);
+      const tags = Array.isArray(video.tags)
+        ? video.tags
+            .map((tag) => (typeof tag === "string" ? tag.trim() : String(tag || "")).trim())
+            .filter(Boolean)
+        : [];
+      const viewCount = Number(video.views);
+
+      const lines = [
+        "  <url>",
+        `    <loc>${escapeHtml(pageUrl)}</loc>`,
+        "    <video:video>",
+        `      <video:thumbnail_loc>${escapeHtml(thumbnailUrl)}</video:thumbnail_loc>`,
+        `      <video:title>${escapeHtml(safeTitle)}</video:title>`,
+        `      <video:description>${escapeHtml(safeDescription)}</video:description>`,
+      ];
+      if (playerLoc) {
+        lines.push(
+          `      <video:player_loc allow_embed="yes">${escapeHtml(playerLoc)}</video:player_loc>`,
+        );
+      }
+      if (contentLoc) {
+        lines.push(`      <video:content_loc>${escapeHtml(contentLoc)}</video:content_loc>`);
+      }
+      if (durationSeconds) {
+        lines.push(`      <video:duration>${durationSeconds}</video:duration>`);
+      }
+      if (publicationDate) {
+        lines.push(`      <video:publication_date>${escapeHtml(publicationDate)}</video:publication_date>`);
+      }
+      if (video.category) {
+        lines.push(
+          `      <video:category>${escapeHtml(video.category.toString().slice(0, 256))}</video:category>`,
+        );
+      }
+      if (Number.isFinite(viewCount) && viewCount > 0) {
+        lines.push(`      <video:view_count>${Math.floor(viewCount)}</video:view_count>`);
+      }
+      tags.slice(0, 32).forEach((tag) => {
+        lines.push(`      <video:tag>${escapeHtml(tag.slice(0, 256))}</video:tag>`);
+      });
+      lines.push("    </video:video>");
+      lines.push("  </url>");
+      entries.push(lines.join("\n"));
+    }
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+${entries.join("\n")}
+</urlset>`;
+
+    res.set("Cache-Control", "public, max-age=3600");
+    res.type("application/xml").send(xml);
+  } catch (error) {
+    console.error(error);
+    res.type("text/plain").status(500).send("video sitemap error");
   }
 });
 

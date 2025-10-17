@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
 Sitemap: https://traingon.top/sitemap.xml
+Sitemap: https://traingon.top/sitemap-video.xml

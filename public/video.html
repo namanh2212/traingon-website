@@ -327,29 +327,40 @@
     </footer>
 
     <script src="/js/ads.js?v=3"></script>
-
-    <!-- ==== EXO OVERLAY: JS (xóa block này để tắt) ==== 
-    <script>
-      (function () {
-        var gate = document.getElementById("exoGate");
-        if (!gate) return;
-        gate.addEventListener(
-          "click",
-          function () {
-            sessionStorage.setItem("exo_gate_done", "1");
-            gate.remove(); // chỉ gỡ overlay, không gọi VAST nữa
-          },
-          { passive: true },
-        );
-      })();
-    </script>
-
-     THAY các script player như sau -->
 <!-- Reset sessionStorage mỗi lần vào trang -->
 <script>try{ sessionStorage.clear(); }catch(e){}</script>
 
-    <script async data-cfasync="false" data-clocid="2087283" src="//renamereptiliantrance.com/on.js"></script>
-    <script async data-cfasync="false" data-clocid="2084258" src="//nappyonsetstiffness.com/on.js"></script>
+    <script type="application/javascript">
+    var ad_idzone = "5711248",
+    ad_popup_fallback = false,
+    ad_popup_force = true,
+    ad_chrome_enabled = true,
+    ad_new_tab = true,
+    ad_frequency_period = 20,
+    ad_frequency_count = 2,
+    ad_trigger_method = 1,
+    ad_trigger_delay = 0,
+    ad_capping_enabled = true; 
+</script>
+<script type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>
+
+<script type="application/javascript">
+    var ad_idzone = "5700208",
+    ad_popup_fallback = false,
+    ad_popup_force = true,
+    ad_chrome_enabled = true,
+    ad_new_tab = true,
+    ad_frequency_period = 5,
+    ad_frequency_count = 2,
+    ad_trigger_method = 2,
+    ad_trigger_class = "download-link",
+    ad_trigger_delay = 0,
+    ad_capping_enabled = false; 
+</script>
+<script type="application/javascript" src="https://a.pemsrv.com/popunder1000.js"></script>
+
+    <!-- <script async data-cfasync="false" data-clocid="2087283" src="//renamereptiliantrance.com/on.js"></script>
+    <script async data-cfasync="false" data-clocid="2084258" src="//nappyonsetstiffness.com/on.js"></script> -->
 
     <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
     <script src="/js/main.js?v=2"></script>
